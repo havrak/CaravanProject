@@ -1,5 +1,5 @@
 /*
-    This sketch shows the Ethernet event usage
+    Code for central unit, runs on OLIMEX EVB
 
 */
 
@@ -27,6 +27,8 @@ const int slaveTypesNumber = 5;
 SlaveTypes slaveTypes[slaveTypesNumber];
 esp_now_peer_info_t espInfo[slaveTypesNumber];
 
+esp_now_peer_info_t peerToBePairedWith;
+
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
   for(int i; i < sizeof(slaveTypes); i++){
     if(type = slaveTypes[i]){
@@ -45,13 +47,37 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
 boolean addNewSlaveToArray(uint8_t type){
   for(int i = 0; i < slaveTypesNumber; i++){
     if(slaveTypes[i] == 0){ // is this correct????
-      
-      
+      switch(type){
+        case 1:
+          slaveTypes[i] = SECURITY;
+          memcpy (&espInfo[i], &peerToBePairedWith, sizeof(peerToBePairedWith)); // copyes data to array
+          break;
+        case 2:
+          slaveTypes[i] = WATER;
+          memcpy (&espInfo[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
+          break;
+        case 3:
+          slaveTypes[i] = WHEELS;
+          memcpy (&espInfo[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
+          break;
+        case 4:
+          slaveTypes[i] = HEATING;
+          memcpy (&espInfo[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
+          break;
+        case 5:
+          slaveTypes[i] = POWER;
+          memcpy (&espInfo[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
+          break;
+      }
     }  
-  }
+  } // resets address so we wont in case for ifs in callbacks
+  int mac[6];
+  for (int i = 0; i < 6; i++ ) {
+    peerToBePairedWith.peer_addr[i] = (uint8_t) mac[i];
+  }  
 }
 
-esp_now_peer_info_t peerToBePairedWith;
+
 
 // IMPLEMENT
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
@@ -88,8 +114,7 @@ void handleNotFound() {
 }
 
 
-void WiFiEvent(WiFiEvent_t event)
-{
+void WiFiEvent(WiFiEvent_t event){
   switch (event) {
     case SYSTEM_EVENT_ETH_START:
       Serial.println("ETH Started");
@@ -212,6 +237,7 @@ void ScanForSlave() {
           // moving to next found STA
         }
       }
+      noOfAttempts = 0;
     }
   }
   // check is slaves were found + print which
@@ -254,18 +280,27 @@ bool attempToPair() {
       // How did we get so far!!
       Serial.println("ESPNOW Not Init");
       InitESPNow();
-      attempToPair();
+      if(noOfAttempts < 8){
+        attempToPair();
+      }
     } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
       Serial.println("Add Peer - Invalid Argument"); 
+      noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
       Serial.println("Peer list full"); // wont be necessary
+      noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
       Serial.println("Out of memory"); // TODO: fix
+      noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
       Serial.println("Peer Exists");  // Imposible case in this case due to higher if
+      noOfAttempts++;
     } else {
       Serial.println("Not sure what happened");
-      attempToPair();
+      noOfAttempts++;
+      if(noOfAttempts < 8){
+        attempToPair();
+      }
     }
     delay(100);
   }
@@ -293,14 +328,30 @@ void sendDataToGetDeviceInfo(){
   } else {
     Serial.println("Not sure what happened");
   }
-
-
 }
 
+void deletePeer() {
+  esp_err_t delStatus = esp_now_del_peer(peerToBePairedWith.peer_addr);
+  Serial.print("Slave Delete Status: ");
+  if (delStatus == ESP_OK) {
+    // Delete success
+    Serial.println("Success");
+  } else if (delStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+    // How did we get so far!!
+    Serial.println("ESPNOW Not Init");
+  } else if (delStatus == ESP_ERR_ESPNOW_ARG) {
+    Serial.println("Invalid Argument");
+  } else if (delStatus == ESP_ERR_ESPNOW_NOT_FOUND) {
+    Serial.println("Peer not found.");
+  } else {
+    Serial.println("Not sure what happened");
+  }
+}
+
+/*
 uint8_t pos = 0;
 // send data 
 // will have enum in argument will affect what data is send and to whom
-/*
 void sendData() {
   pos++;
   //const uint8_t *peer_addr = .peer_addr;
@@ -334,13 +385,11 @@ void sendData() {
 }
 */
 
-//noOfAttempts
-
-
 // callback when data is sent from Master to Slave
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr){ // try until data is send successfully
-      sendDataToGetDeviceInfo();
+  if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 20){ // try until data is send successfully
+    noOfAttempts++;
+    sendDataToGetDeviceInfo();
   }
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -351,12 +400,12 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   if(*mac_addr == *peerToBePairedWith.peer_addr){
-    if((*data-100) >= 0 && (*data-100) < slaveTypesNumber){
+    if((*data-100) > 0 && (*data-100) <= slaveTypesNumber){
       // calls addNewSlaveToArray
-      addNewSlaveToArray(*data);
+      addNewSlaveToArray(*data-100);
     }else{
-      // we get something that we didn't asked for
-      // delete Peer
+      // we get something that we didn't asked for and tha
+      deletePeer();
       }
   }
   char macStr[18];
@@ -373,7 +422,7 @@ void setup()
   Serial.begin(115200);
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
-  WiFi.mode(WIFI_MODE_APSTA);
+  WiFi.mode(WIFI_STA);
   Serial.println("ESPNow/Basic/Master Example");
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
@@ -382,16 +431,13 @@ void setup()
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
   esp_now_register_send_cb(OnDataSent);
+  esp_now_register_recv_cb(OnDataRecv);
   delay(2000);
-
-  // 128 166 240 71 207 4 0 0 137 2 0 0 119 5 0 0
-  // 128 166 240 71 207 4 0 0 137 2 0 0 105 4 0 0
   
   test.f1 =         123213;
   test.i1 =         1231;
   test.i2 =         649;
-  test.signature =  1129;
-
+  
   server.on("/", handleRoot);
 
   server.on("/inline", []() {
