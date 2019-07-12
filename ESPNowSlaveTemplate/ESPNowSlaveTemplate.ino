@@ -33,8 +33,9 @@
 #include <WiFi.h>
 
 #define CHANNEL 1
+
 esp_now_peer_info_t master;
-boolean sendedIMyTypToCentral = false;
+boolean sendedIMyTypeToCentral = false;
 
 // Init ESP Now with fallback
 void InitESPNow() {
@@ -44,16 +45,13 @@ void InitESPNow() {
   }
   else {
     Serial.println("ESPNow Init Failed");
-    // Retry InitESPNow, add a counte and then restart?
-    // InitESPNow();
-    // or Simply Restart
     ESP.restart();
   }
 }
 
 // config AP SSID
 void configDeviceAP() {
-  const char *SSID = "Slave_1";
+  const char *SSID = "ESPNOW_1";
   bool result = WiFi.softAP(SSID, "Slave_1_Password", CHANNEL, 0);
   if (!result) {
     Serial.println("AP Config failed.");
@@ -80,10 +78,11 @@ void setup() {
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && sendedIMyTypToCentral == false){ // try until data is send successfully
+  if(status != ESP_NOW_SEND_SUCCESS && sendedIMyTypeToCentral == false){ // try until data is send successfully
+    Serial.println("Sending info failed");
     sendConfirmation();
   }else{
-    sendedIMyTypToCentral = true;
+    sendedIMyTypeToCentral = true;
   }
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -124,21 +123,23 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  Serial.println(*mac_addr);
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
-  Serial.println("");
 
+  
   if (*data == (uint8_t) 193){
       master.channel = 1;
       master.encrypt = 0;
-      memcpy(master.peer_addr, mac_addr, sizeof(mac_addr)); // will this work ???
+      memcpy(master.peer_addr, mac_addr, sizeof(mac_addr)+8); // size if diffrent
+      
       esp_err_t addStatus = esp_now_add_peer(&master);
       sendConfirmation();
   }
 }
 void sendConfirmation(){
   Serial.println();
-  uint8_t data = 101;  
+  uint8_t data = 101;
   esp_err_t result = esp_now_send(master.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("Send Status: ");
   if (result == ESP_OK) {
