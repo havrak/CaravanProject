@@ -15,12 +15,26 @@
 #define PRINTSCANRESULTS 0
 #define DELETEBEFOREPAIR 0
 
+
+#define stringify( name ) # name
 WebServer server(80);
 
 enum SlaveTypes{
   SECURITY,WATER,WHEELS,HEATING,POWER
 };
 const int slaveTypesNumber = 5;
+
+
+// remove after testing
+const char* slaveTypesNames[] = 
+  {
+  stringify(SECURITY),
+  stringify(WATER),
+  stringify(WHEELS),
+  stringify(HEATING),
+  stringify(POWER)
+  };
+
 
 // two arrays, index, will be same, access only with methods, size is equal to number of enums in SlaveTypes
 SlaveTypes slaveTypes[slaveTypesNumber];
@@ -56,11 +70,9 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
 }
 
 boolean doesntContainMac(esp_now_peer_info_t peer){
-  Serial.println("foo");
   for(int i = 0; i < sizeof(slaveTypes); i++){
-    Serial.println("checking");
     // atribute peer_addr - array
-    if(checkIfTwoAddressesAreSame(peer.peer_addr, espInfo[i].peer_addr)){ // does not work
+    if(checkIfTwoAddressesAreSame(peer.peer_addr, espInfo[i].peer_addr)){
         Serial.println("\t\tMac address is already stored");
         return false;
     }
@@ -70,7 +82,7 @@ boolean doesntContainMac(esp_now_peer_info_t peer){
 
 boolean addNewSlaveToArray(int index, uint8_t type){
   for(int i = 0; i < slaveTypesNumber; i++){
-    if(slaveTypes[i] == 0){ // is this correct????
+    if(slaveTypes[i] == 0){
       switch(type){
         case 1:
           slaveTypes[i] = SECURITY;
@@ -111,9 +123,10 @@ boolean addNewSlaveToArray(int index, uint8_t type){
 void printRouteTable(){
   Serial.println();
   for(int i=0; i < slaveTypesNumber; i++){
-    Serial.print(slaveTypes[i]);
+    Serial.print(slaveTypesNames[i]);
     Serial.print(" : ");
     printAddress(espInfo[i].peer_addr);  
+    Serial.print("   ");
   }
   Serial.println();
 }
@@ -288,8 +301,9 @@ void ScanForSlave() {
 }
 
 void printAddress(uint8_t addr[]){
-  for(int i=0; i< sizeof(addr); i++){
-    Serial.print(addr[i]);Serial.print(":");  
+  for (int i = 0; i < 6; ++i ) {
+    Serial.print((uint8_t) addr[i], HEX);
+    if (i != 5) Serial.print(":");
   }
 }
 
@@ -312,11 +326,12 @@ bool attempToPair() {
     Serial.print((uint8_t) peerToBePairedWith.peer_addr[ii], HEX);
     if (ii != 5) Serial.print(":");
   }
-  Serial.print(" Status: ");
+  Serial.print("Status:");
   
   // check if the peer exists
   bool exists = esp_now_is_peer_exist(peerToBePairedWith.peer_addr);
   if (exists) {
+    Serial.println("asdsad");
     // Slave already paired.
     if(doesntContainMac(untypedPeers[getIndexOfUntyped(peerToBePairedWith.peer_addr)])){
         //Serial.println("Doesn't contain mac");
@@ -490,22 +505,16 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   s   nprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 */
-
-  
-  Serial.println("\t\t\t\tGot Data");
   
   for(int i = 0; i < sizeof(untypedPeers); i++){
     if(*untypedPeers[i].peer_addr == *mac_addr){
-      Serial.print("Match: "); Serial.println(i);
       if((*data-100) > 0 && (*data-100) <= slaveTypesNumber){
-      // calls addNewSlaveToArray
-      addNewSlaveToArray(i, *data-100);
-      untypedPeers[i] = emptyInfo;
-       }else{
-      // we get something that we didn't asked for and tha
-      deletePeer(untypedPeers[i]);
-      }
-        
+        addNewSlaveToArray(i, *data-100);
+        untypedPeers[i] = emptyInfo;
+      }else{
+        deletePeer(untypedPeers[i]);
+        untypedPeers[1] = emptyInfo;
+      }     
     }  
   }
   char macStr[18];
@@ -514,7 +523,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println();
   Serial.print("\t\tLast Packet Recv from: "); Serial.println(macStr);
   Serial.print("\t\tLast Packet Recv Data: "); Serial.println(*data);
-  Serial.println("");
+  Serial.println();
 }
 
 void setup(){
@@ -522,11 +531,9 @@ void setup(){
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
   WiFi.mode(WIFI_STA);
-  Serial.println("ESPNow/Basic/Master Example");
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
   // Init ESPNow with a fallback logic
-  Serial.println("adasdasdasd");
   InitESPNow();
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
@@ -564,7 +571,10 @@ void loop(){
   // If Slave is found, it would be populate in `slave` variable
   // We will check if `slave` is defined and then we proceed further
   if (slaveTypes[0]==0) { // check if slave channel is defined
-    // ready to send data
+
+    uint8_t data = 6;
+    Serial.println("Sending"); 
+    esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
   }
   else {
     // No slave found to process
