@@ -31,11 +31,14 @@
 
 #include <esp_now.h>
 #include <WiFi.h>
+#include <EEPROM.h>
 
+#define EEPROM_SIZE 64
 #define CHANNEL 1
 
 esp_now_peer_info_t master;
 boolean sendedIMyTypeToCentral = false;
+uint8_t master_addr;
 
 // Init ESP Now with fallback
 void InitESPNow() {
@@ -71,10 +74,19 @@ void setup() {
   Serial.print("AP MAC: "); Serial.println(WiFi.softAPmacAddress());
   // Init ESPNow with a fallback logic
   InitESPNow();
-  // Once ESPNow is successfully Init, we will register for recv CB to
-  // get recv packer info.
   esp_now_register_recv_cb(OnDataRecv);
   esp_now_register_send_cb(OnDataSent);
+
+  if (!EEPROM.begin(EEPROM_SIZE)){
+    Serial.println("failed to initialise EEPROM"); delay(1000000);
+  }
+  EEPROM.write(2, 64);
+  Serial.println(" bytes read from Flash . Values are:");
+  for (int i = 0; i < EEPROM_SIZE; i++){
+    Serial.print(byte(EEPROM.read(i))); Serial.print(" ");
+  }
+  Serial.println();
+  Serial.println("writing random n. in memory");
 }
 
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -94,9 +106,9 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 int pos=0;
 void sendData() {
   pos++;
-  
+
   uint8_t data = 0;
-  Serial.println(); 
+  Serial.println();
   Serial.print("Sending No.: "); Serial.println(pos);
   esp_err_t result = esp_now_send(master.peer_addr, &data, sizeof(data));
   Serial.print("Send Status: ");
@@ -119,6 +131,7 @@ void sendData() {
 }
 
 // callback when data is recv from Master
+// check if mac_addr matches master, others inpouts ignore
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -127,14 +140,18 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
 
-  
+
   if (*data == (uint8_t) 193){
       master.channel = 1;
       master.encrypt = 0;
       memcpy(master.peer_addr, mac_addr, sizeof(mac_addr)+8); // size if diffrent
-      
+
       esp_err_t addStatus = esp_now_add_peer(&master);
       sendConfirmation();
+      memcpy(&master_addr,&mac_addr,sizeof(mac_addr));
+  }
+  if(*mac_addr == master_addr){
+  	  // procede
   }
 }
 void sendConfirmation(){
@@ -145,7 +162,6 @@ void sendConfirmation(){
   if (result == ESP_OK) {
     Serial.println("Success");
   } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
-    // How did we get so far!!
     Serial.println("ESPNOW not Init.");
   } else if (result == ESP_ERR_ESPNOW_ARG) {
     Serial.println("Invalid Argument");

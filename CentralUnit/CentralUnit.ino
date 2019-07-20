@@ -7,14 +7,21 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <WebServer.h>
-#include <list> 
-// Global copy of slave
+#include <EEPROM.h>
+#include <NTPClient.h>
+#include <WiFiUdp.h>
 
+WiFiUDP Udp;
+NTPClient timeClient(Udp);
+
+String formattedDate;
+String dayStamp;
+String timeStamp;
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
 #define DELETEBEFOREPAIR 0
-
+#define EEPROM_SIZE 1
 
 #define stringify( name ) # name
 WebServer server(80);
@@ -24,9 +31,8 @@ enum SlaveTypes{
 };
 const int slaveTypesNumber = 5;
 
-
 // remove after testing
-const char* slaveTypesNames[] = 
+const char* slaveTypesNames[] =
   {
   stringify(SECURITY),
   stringify(WATER),
@@ -56,9 +62,9 @@ int getIndexOfUntyped(const uint8_t *mac_addr){
 
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
   for(int i; i < sizeof(slaveTypes); i++){
-    if(type = slaveTypes[i]){
-      return espInfo[i];  
-    }  
+    if(type == slaveTypes[i]){
+      return espInfo[i];
+    }
   }
 }
 SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
@@ -116,7 +122,7 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           i = slaveTypesNumber;
           break;
       }
-    }  
+    }
   } // resets address so we wont in case for ifs in callbacks
   printRouteTable();
 }
@@ -126,7 +132,7 @@ void printRouteTable(){
   for(int i=0; i < slaveTypesNumber; i++){
     Serial.print(slaveTypesNames[i]);
     Serial.print(" : ");
-    printAddress(espInfo[i].peer_addr);  
+    printAddress(espInfo[i].peer_addr);
     Serial.print("   ");
   }
   Serial.println();
@@ -144,7 +150,7 @@ byte noOfAttempts = 0; // how many times have we tried to establish and verify c
 
 
 struct TEST_STRUCT{
-  float f1;  
+  float f1;
   int i1;
   int i2;
   short signature;
@@ -155,7 +161,7 @@ static bool eth_connected = false;
 const short callsign = 999;
 
 void handleRoot() {
-  server.send(200, "text/plain", "hello from esp8266!");
+  server.send(200, "text/plain", "hello from esp32!");
 }
 
 void handleNotFound() {
@@ -210,8 +216,7 @@ void WiFiEvent(WiFiEvent_t event){
   }
 }
 
-void testClient(const char * host, uint16_t port)
-{
+void testClient(const char * host, uint16_t port){
   Serial.print("\nconnecting to ");
   Serial.println(host);
 
@@ -250,7 +255,7 @@ void ScanForSlave() {
     Serial.println("No WiFi devices in AP Mode found");
   } else {
     Serial.print("Found "); Serial.print(scanResults); Serial.println(" devices ");
-    
+
     for (int i = 0; i < scanResults; ++i) {
       // Print SSID and RSSI for each device found
       String SSID = WiFi.SSID(i);
@@ -258,7 +263,7 @@ void ScanForSlave() {
       String BSSIDstr = WiFi.BSSIDstr(i);
       Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
       delay(60);
-      
+
       // Check if the current device starts with `Slave`
       if (SSID.indexOf("ESPNOW") == 0) {
         // Get BSSID => Mac Address of the Slave
@@ -269,11 +274,11 @@ void ScanForSlave() {
             peerToBePairedWith.peer_addr[ii] = (uint8_t) mac[ii];
           }
           peerToBePairedWith.channel = CHANNEL; // pick a channel
-          peerToBePairedWith.encrypt = 0; 
+          peerToBePairedWith.encrypt = 0;
           // attempts to pair to found slave
 
           // TODO: stop function here;
-          attempToPair(); 
+          attempToPair();
           // can be moved to callbacks after sending message here needs to be boolean to stop
           // moving to next found STA
           delay(10);
@@ -295,10 +300,10 @@ void ScanForSlave() {
 boolean checkIfTwoAddressesAreSame(uint8_t addr1[], uint8_t addr2[]){
   if(sizeof(addr1) != sizeof(addr2)){
     Serial.println("diffrent size");
-    return false;  
-  }  
+    return false;
+  }
   for(int i = 0; i < sizeof(addr1); i++){
-    if(addr1[i] != addr2[i]) return false;  
+    if(addr1[i] != addr2[i]) return false;
   }
   return true;
 }
@@ -312,14 +317,14 @@ bool attempToPair() {
     if (ii != 5) Serial.print(":");
   }
   Serial.print("Status:");
-  
+
   // check if the peer exists
   bool exists = esp_now_is_peer_exist(peerToBePairedWith.peer_addr);
   if (exists) {
     // Slave already paired.
     Serial.println("It exists");
     delay(10);
-    // maybe check is mac is in table 
+    // maybe check is mac is in table
     if(doesntContainMac(peerToBePairedWith.peer_addr)){
         printRouteTable();
         //Serial.println("Doesn't contain mac");
@@ -327,19 +332,19 @@ bool attempToPair() {
     }
     Serial.println("Already Paired");
   } else {
-    // Slave not paired, attempt pair 
+    // Slave not paired, attempt pair
     Serial.println("Pairing");
     esp_err_t addStatus = esp_now_add_peer(&peerToBePairedWith);
-    if (addStatus == ESP_OK) {     
-      Serial.println("Paired");      
+    if (addStatus == ESP_OK) {
+      Serial.println("Paired");
       // Pair success here message will be send and changed boolean/ metod for recv data
       // also need to change sendCallback - that will check mac if failed than will data be sent again
       // recv data also will check mac address - than special behaveior
       // NEED TO CLEAN peerToBePairedWith !!!!!
       // check form of mac (What type)
-            
+
       Serial.println("Pair success"); // attempt to pair ends
-      
+
       // peer will be added to array of peers we are expecting answer from
 
 
@@ -347,14 +352,14 @@ bool attempToPair() {
       for(int i = 0; i < sizeof(untypedPeers); i++){
         printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); printAddress(emptyInfo.peer_addr);
         if(checkIfTwoAddressesAreSame(untypedPeers[i].peer_addr, emptyInfo.peer_addr)){ // will this work???
-          Serial.println("Found Empty");
+          Serial.println("Found punctuationEmpty");
           memcpy(&untypedPeers[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
           i = sizeof(untypedPeers);
           sendDataToGetDeviceInfo(i);
         }
-        Serial.println();  
+        Serial.println();
       }
-      
+
       // TODO: after couple of retries attemToPair should exit maybe 3, than delete peer
       // Should failiurese be counted in one int for whole pairing ????
     } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
@@ -365,7 +370,7 @@ bool attempToPair() {
         attempToPair();
       }
     } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
-      Serial.println("Add Peer - Invalid Argument"); 
+      Serial.println("Add Peer - Invalid Argument");
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
       Serial.println("Peer list full"); // wont be necessary
@@ -387,7 +392,7 @@ bool attempToPair() {
   }
 }
 // called after pairing with new slave and in case of failiures
-// if 
+// if
 void sendDataToGetDeviceInfo(int index){
   Serial.println("Sending data to get info");
   uint8_t data = 193;
@@ -419,7 +424,6 @@ void deletePeer(esp_now_peer_info_t toDelete) {
     // Delete success
     Serial.println("Success");
   } else if (delStatus == ESP_ERR_ESPNOW_NOT_INIT) {
-    // How did we get so far!!
     Serial.println("ESPNOW Not Init");
   } else if (delStatus == ESP_ERR_ESPNOW_ARG) {
     Serial.println("Invalid Argument");
@@ -432,19 +436,19 @@ void deletePeer(esp_now_peer_info_t toDelete) {
 
 /*
 uint8_t pos = 0;
-// send data 
+// send data
 // will have enum in argument will affect what data is send and to whom
 void sendData() {
   pos++;
   //const uint8_t *peer_addr = .peer_addr;
 
-  uint8_t bs[sizeof(test)]; 
+  uint8_t bs[sizeof(test)];
   memcpy(bs, &test, sizeof(test));
 
   for(int j=0; j < sizeof(bs); j++){
     Serial.print(bs[j]); Serial.print(" ");
   }
-  Serial.println(); 
+  Serial.println();
   Serial.print("Sending No.: "); Serial.println(pos);
   //esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
   Serial.print("Send Status: ");
@@ -483,7 +487,7 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 /*
     int mac[6];
-        if ( 6 == 
+        if ( 6 ==
         sscanf(BSSIDstr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",  &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5] ) ) {
           // we have mac, now we create temp slave and attemp to pair
           for (int ii = 0; ii < 6; ++ii ) {
@@ -497,7 +501,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  
+
   for(int i = 0; i < 20; i++){
     printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr);
     if(*untypedPeers[i].peer_addr == *mac_addr){ // does it really checks
@@ -508,11 +512,11 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       }else{
         deletePeer(untypedPeers[i]);
         untypedPeers[1] = emptyInfo;
-      }     
+      }
     }
-      
+
   }
-  
+
   Serial.println();
   Serial.print("\t\tLast Packet Recv from: "); Serial.println(macStr);
   Serial.print("\t\tLast Packet Recv Data: "); Serial.println(*data);
@@ -533,13 +537,17 @@ void setup(){
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
   delay(2000);
+  timeClient.begin();
+  timeClient.setTimeOffset(3600);
+  timeClient.forceUpdate();
+  //
 
   for(int i = 0; i< 20; i++){
     for(int j = 0; i <6; i++){
         untypedPeers[i].peer_addr[j] = emptyInfo.peer_addr[j];
       }
   }
-  
+
   server.on("/", handleRoot);
 
   server.on("/inline", []() {
@@ -548,32 +556,57 @@ void setup(){
 
   server.onNotFound(handleNotFound);
 
+  //EEPROM.write(0, 64);
+
+  //EEPROM.commit();
+
+  //int temp = EEPROM.read(0);
+  //Serial.print("On 0 is: "); Serial.println(temp);
+  //Serial.print("On 0 is: "); Serial.println(EEPROM.read(0));
+  timeClient.begin();
+  timeClient.setTimeOffset(7200);
   server.begin();
-  
+
 }
 
 
 void loop(){
+
+  while(!timeClient.update()) {
+    timeClient.forceUpdate();
+  }
+  // The formattedDate comes with the following format:
+  // 2018-05-28T16:00:13Z
+  // We need to extract date and time
+  formattedDate = timeClient.getFormattedDate();
+  Serial.println(formattedDate);
+
+  // Extract date
+  int splitT = formattedDate.indexOf("T");
+  dayStamp = formattedDate.substring(0, splitT);
+  Serial.print("DATE: ");
+  Serial.println(dayStamp);
+  // Extract time
+  timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
+  Serial.print("HOUR: ");
+  Serial.println(timeStamp);
+  //delay(1000);
+
   //if (eth_connected) {
   //  testClient("google.com", 80);
   //  server.handleClient();
   //}
-
-
 
   // In the loop we scan for slave
   ScanForSlave();
   // If Slave is found, it would be populate in `slave` variable
   // We will check if `slave` is defined and then we proceed further
   if (slaveTypes[0]==0) { // check if slave channel is defined
-
     uint8_t data = 6;
-    Serial.println("Sending in loop");
-    Serial.println();
-    esp_err_t result = esp_now_send(espInfo[0].peer_addr, &data, sizeof(data));
-    //esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
+    //esp_err_t result = esp_now_send(espInfo[0].peer_addr, &data, sizeof(data));
+    esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
   }
   else {
     // No slave found to process
-  }  
+  }
 }
