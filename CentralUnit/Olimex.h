@@ -4,7 +4,9 @@
 // header for olimex
 class Olimex{
   public:
-    Olimex();
+    Olimex(){
+      
+    };
   protected:
   private:
 };

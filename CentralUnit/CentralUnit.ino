@@ -11,13 +11,12 @@
 #include <WiFiUdp.h>
 #include "Olimex.h"
 #include "Water.h"
-
-WiFiUDP Udp;
-NTPClient timeClient(Udp);
-
-String formattedDate;
-String dayStamp;
-String timeStamp;
+#include "Heating.h"
+#include "Power.h"
+#include "Temp.h"
+#include "Wheels.h"
+#include "Security.h"
+#include "Water.h"
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
@@ -25,17 +24,34 @@ String timeStamp;
 #define EEPROM_SIZE 1
 
 #define stringify( name ) # name
+
+WiFiUDP Udp;
+NTPClient timeClient(Udp);
 WebServer server(80);
+
+String formattedDate;
+String dayStamp;
+String timeStamp;
+int timeOffset = 7200;
+
 
 const int slaveTypesNumber = 6;
 enum SlaveTypes{
   SECURITY,WATER,WHEELS,HEATING,POWER,TEMP
 };
+// TODO: find out how callbacks are handled
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
 bool updateLocks[slaveTypesNumber];
 
+Olimex olimex;
 
-int timeOffset = 7200;
+Power power;
+Secutity security;
+Temp temp;
+Water water;
+Wheels wheels;
+Heating heating;
+
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -154,16 +170,7 @@ void printAddress(uint8_t addr[]){
 
 // IMPLEMENT
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
-
-
-struct TEST_STRUCT{
-  float f1;
-  int i1;
-  int i2;
-  short signature;
-};
-TEST_STRUCT test;
-
+2
 static bool eth_connected = false;
 const short callsign = 999;
 
@@ -494,6 +501,8 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 
+  bool wasNewUnitAdded = false;
+  // check if it wont make trouble bool messageWasDiscarded
   for(int i = 0; i < 20; i++){
     printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr);
     if(*untypedPeers[i].peer_addr == *mac_addr){ // does it really checks
@@ -501,9 +510,32 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         delay(10);
         addNewSlaveToArray(i, *data-100);
         untypedPeers[i] = emptyInfo;
-      }else{
+        wasNewUnitAdded = true;
+      }else{ // we expect right input on first try
         deletePeer(untypedPeers[i]);
         untypedPeers[1] = emptyInfo;
+      }
+    }
+    if(!wasNewUnitAdded){
+      switch(getSlaveTypeForMAC(mac_addr)){
+        case SECURITY:
+          heating.updateYourData(data);
+          break;
+        case WATER:
+          water.updateYourData(data);
+          break;
+        case WHEELS:
+          wheels.updateYourData(data);
+          break;
+        case HEATING:
+          heating.updateYourData(data);
+          break;
+        case POWER:
+          power.updateYourData(data);
+          break;
+        case TEMP:
+          temp.updateYourData(data);
+          break;
       }
     }
 
@@ -586,7 +618,7 @@ void loop(){
   //delay(1000);
 
   //if (eth_connected) {
-  //  testClient("google.com", 80);
+  //  testClient("duckduckgo.com", 80);
   //  server.handleClient();
   //}
 
