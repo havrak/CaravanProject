@@ -5,8 +5,8 @@
 #include "UnitAbstract.h"
 #include <esp_now.h>
 #include "Olimex.h"
-//: public unitAbstract
-class Water {
+//
+class Water : public UnitAbstract{
   public:
     struct Data{
       int i;
