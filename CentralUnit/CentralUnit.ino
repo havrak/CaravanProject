@@ -1,6 +1,5 @@
 /*
     Code for central unit, runs on OLIMEX EVB
-
 */
 
 #include <ETH.h>
@@ -10,6 +9,8 @@
 #include <EEPROM.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
+#include "Olimex.h"
+#include "Water.h"
 
 WiFiUDP Udp;
 NTPClient timeClient(Udp);
@@ -26,10 +27,15 @@ String timeStamp;
 #define stringify( name ) # name
 WebServer server(80);
 
+const int slaveTypesNumber = 6;
 enum SlaveTypes{
-  SECURITY,WATER,WHEELS,HEATING,POWER
+  SECURITY,WATER,WHEELS,HEATING,POWER,TEMP
 };
-const int slaveTypesNumber = 5;
+// array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
+bool updateLocks[slaveTypesNumber];
+
+
+int timeOffset = 7200;
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -38,7 +44,8 @@ const char* slaveTypesNames[] =
   stringify(WATER),
   stringify(WHEELS),
   stringify(HEATING),
-  stringify(POWER)
+  stringify(POWER),
+  stringify(TEMP),
 };
 
 
@@ -441,10 +448,8 @@ uint8_t pos = 0;
 void sendData() {
   pos++;
   //const uint8_t *peer_addr = .peer_addr;
-
   uint8_t bs[sizeof(test)];
   memcpy(bs, &test, sizeof(test));
-
   for(int j=0; j < sizeof(bs); j++){
     Serial.print(bs[j]); Serial.print(" ");
   }
@@ -485,19 +490,6 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
-/*
-    int mac[6];
-        if ( 6 ==
-        sscanf(BSSIDstr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",  &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5] ) ) {
-          // we have mac, now we create temp slave and attemp to pair
-          for (int ii = 0; ii < 6; ++ii ) {
-            peerToBePairedWith.peer_addr[ii] = (uint8_t) mac[ii];
-          }
-
-     char macStr[18];
-  s   nprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-*/
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -537,9 +529,8 @@ void setup(){
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
   delay(2000);
-  timeClient.begin();
-  timeClient.setTimeOffset(3600);
-  timeClient.forceUpdate();
+  // summer / winter time or manual adjustment
+  
   //
 
   for(int i = 0; i< 20; i++){
@@ -564,7 +555,8 @@ void setup(){
   //Serial.print("On 0 is: "); Serial.println(temp);
   //Serial.print("On 0 is: "); Serial.println(EEPROM.read(0));
   timeClient.begin();
-  timeClient.setTimeOffset(7200);
+  timeClient.setTimeOffset(timeOffset);
+  timeClient.forceUpdate();
   server.begin();
 
 }
@@ -573,11 +565,12 @@ void setup(){
 void loop(){
 
   while(!timeClient.update()) {
+    timeClient.setTimeOffset(timeOffset);
     timeClient.forceUpdate();
   }
   // The formattedDate comes with the following format:
   // 2018-05-28T16:00:13Z
-  // We need to extract date and time
+  // will be send to olimex
   formattedDate = timeClient.getFormattedDate();
   Serial.println(formattedDate);
 
