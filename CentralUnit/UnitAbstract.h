@@ -12,7 +12,7 @@ class UnitAbstract {
       // cant create final Data data due to unknown type of data in structure
       struct Data;
       // Object will send its data to olimex 
-      virtual void updataDataOnOlimex(Olimex olimex) = 0;
+      virtual void updateDataOnOlimex(Olimex olimex) = 0;
       // Object will fetch config from Olimex
       virtual void fetchNewConfigFromOlimex() = 0;
       // Object will recive new data from main that origins from sensor unit

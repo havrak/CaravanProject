@@ -13,10 +13,10 @@
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
-#include "Temp.h"
 #include "Wheels.h"
 #include "Security.h"
 #include "Water.h"
+#include "Connection.h"
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
@@ -46,7 +46,7 @@ bool updateLocks[slaveTypesNumber];
 Olimex olimex;
 
 Power power;
-Secutity security;
+Security security;
 Water water;
 Wheels wheels;
 Heating heating;
@@ -168,7 +168,7 @@ void printAddress(uint8_t addr[]){
 
 // IMPLEMENT
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
-2
+
 static bool eth_connected = false;
 const short callsign = 999;
 
@@ -517,19 +517,19 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     if(!wasNewUnitAdded){
       switch(getSlaveTypeForMAC(mac_addr)){
         case SECURITY:
-          heating.updateYourData(data);
+          heating.updateYourData(*data);
           break;
         case WATER:
-          water.updateYourData(data);
+          water.updateYourData(*data);
           break;
         case WHEELS:
-          wheels.updateYourData(data);
+          wheels.updateYourData(*data);
           break;
         case HEATING:
-          heating.updateYourData(data);
+          heating.updateYourData(*data);
           break;
         case POWER:
-          power.updateYourData(data);
+          power.updateYourData(*data);
           break;
       }
     }

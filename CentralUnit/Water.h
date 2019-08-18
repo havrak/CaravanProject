@@ -14,7 +14,7 @@ class Water : public UnitAbstract{
       
     };
     
-    static Data data;
+    Data data;
     Water(){
       
     }
@@ -26,7 +26,9 @@ class Water : public UnitAbstract{
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
-    void updateYourData(uint8_t newData);
+    void updateYourData(uint8_t newData){
+      
+    };
     uint8_t getDataToBeSend(){
       uint8_t bs[sizeof(data)]; 
       memcpy(bs, &data, sizeof(data));
@@ -35,13 +37,13 @@ class Water : public UnitAbstract{
 
     // geters for variables in scructure for testing purpouse 
     double getLitersRemaining(){
-      return litersRemaining;
+      return data.litersRemaining;
     }
-    boolean getConnectionToWaterSource(){
-      return connectionToWaterSource;  
+    bool getConnectionToWaterSource(){
+      return data.connectionToWaterSource;  
     }
     double getTemperature(){
-      return temperature;
+      return data.temperature;
     }
 };
 #endif WATER_H
