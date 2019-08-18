@@ -47,11 +47,10 @@ Olimex olimex;
 
 Power power;
 Secutity security;
-Temp temp;
 Water water;
 Wheels wheels;
 Heating heating;
-
+Connection connection;
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -61,7 +60,6 @@ const char* slaveTypesNames[] =
   stringify(WHEELS),
   stringify(HEATING),
   stringify(POWER),
-  stringify(TEMP),
 };
 
 
@@ -532,9 +530,6 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
           break;
         case POWER:
           power.updateYourData(data);
-          break;
-        case TEMP:
-          temp.updateYourData(data);
           break;
       }
     }

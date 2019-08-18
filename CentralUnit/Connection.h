@@ -1,22 +1,25 @@
-#ifndef SECURITY_H
-#define SECURITY_H
-#include "UnitAbstract.h"
+// Olinex takes care if it directly, so it cant be based on Unitabsctracet (method updateYourData)
+
+#ifndef Connection_H
+#define Connection_H
+#include "Olimex.h"
 // all calculation of water levels will be done on sensor unit
 // first portion of structure are data from unit, second is configuration (seperated by space)
-class Security : public UnitAbstract{
+class Connection{
   public:
     
     struct Data{
-      bool state;
-      byte numberOfSatelytes;
-      // what does that even mean
-      double accuraccy;
+      //0 - AP, 1 - LTE 
+      bool typeOfConnection;
+      double UpLink;
+      // diffrent evaluation based on source AP, LTE
+      double SignalStrenght;
      
       
     };
     
     static Data data;
-    Security(){
+    Connection(){
       
     }
     void updateDataOnOlimex(Olimex olimex){
@@ -45,4 +48,4 @@ class Security : public UnitAbstract{
       return temperature;
     }
 };
-#endif SECURITY_H
+#endif WHEELS_H
