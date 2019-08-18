@@ -1,59 +1,54 @@
-// Olinex takes care if it directly, so it cant be based on Unitabsctracet (method updateYourData)
+// Olimex takes care of it directly, so it cant be based on Unitabstract (method updateYourData)
+// Will comunicate with mikrotik directly
+// TODO: check telnet port
 
 #ifndef CONNECTION_H
 #define CONNECTION_H
 #include "Olimex.h"
-// all calculation of water levels will be done on sensor unit
-// first portion of structure are data from unit, second is configuration (seperated by space)
-class Connection{
-  public:
-    struct Data{
-      // device will remember its last configuration, object will recive it from unit after it is swithched on
-      //0 - OFF, 1 - LTE, 2 - AP
-      byte typeOfConnection;
-      double UpLink;
-      // diffrent evaluation based on source AP, LTE
-      double SignalStrenght;
+#include <WiFi.h>
+#include <EEPROM.h>
 
-      // on off 
-      bool stateOfDevice;
-      
-    };
-    
-    Data data;
-    Connection(){
-      
+
+class Connection{
+  public:    
+    //0 - OFF, 1 - LTE, 2 - AP
+    byte typeOfConnection;
+    double UpLink;
+    // diffrent evaluation based on source AP, LTE
+    double SignalStrenght;
+
+    Connection(IPAddress ip){
+      server = ip;
+      if (client.connect(server, 23)) {
+        isTelnetConnectionRunning = true;
+      }
     }
     void updateDataOnOlimex(Olimex olimex){
       
     }
+    // also will change configuration on mikrotik trought telnet
     void fetchNewConfigFromOlimex(){
       
     }
-    // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
-    // check how flow works
-    void updateYourData(uint8_t newData){
+    // will do 
+    void updateYourData(){
       
     };
-    
-    uint8_t getDataToBeSend(){
-      uint8_t bs[sizeof(data)]; 
-      memcpy(bs, &data, sizeof(data));
-      return *bs;
-    }
 
     // geters for variables in scructure for testing purpouse 
     byte getTypeOfConnection(){
-      return data.typeOfConnection;
+      return typeOfConnection;
     }
     double getUpLink(){
-      return data.UpLink;  
+      return UpLink;  
     }
     double getSignalStrenght(){
-      return data.SignalStrenght;
+      return SignalStrenght;
     }
-    bool getStateOfDevice(){
-      return data.stateOfDevice;
-    }
+    private: 
+      WiFiClient client;
+      // for some reason IP cannot be created here and needs to be passed from main
+      IPAddress server;
+      bool isTelnetConnectionRunning = false;
 };
 #endif CONNECTION_H

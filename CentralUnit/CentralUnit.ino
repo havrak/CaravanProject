@@ -17,6 +17,7 @@
 #include "Security.h"
 #include "Water.h"
 #include "Connection.h"
+#include "Temperatures.h"
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
@@ -34,6 +35,7 @@ String dayStamp;
 String timeStamp;
 int timeOffset = 7200;
 
+IPAddress ip(1,1,1,1);
 
 const int slaveTypesNumber = 6;
 enum SlaveTypes{
@@ -50,7 +52,8 @@ Security security;
 Water water;
 Wheels wheels;
 Heating heating;
-Connection connection;
+Connection connection(ip);
+Temperatures temperatures;
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -80,7 +83,6 @@ int getIndexOfUntyped(const uint8_t *mac_addr){
       }
   }
 }
-
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
   for(int i; i < sizeof(slaveTypes); i++){
     if(type == slaveTypes[i]){
@@ -95,7 +97,6 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
       }
   }
 }
-
 boolean doesntContainMac(uint8_t addr[]){
   for(int i = 0; i < slaveTypesNumber; i++){
     printAddress(espInfo[i].peer_addr );Serial.print("    "); printAddress(addr); Serial.println();
@@ -172,9 +173,11 @@ byte noOfAttempts = 0; // how many times have we tried to establish and verify c
 static bool eth_connected = false;
 const short callsign = 999;
 
+
 void handleRoot() {
   server.send(200, "text/plain", "hello from esp32!");
 }
+
 
 void handleNotFound() {
   String message = "File Not Found\n\n";
@@ -246,6 +249,7 @@ void testClient(const char * host, uint16_t port){
   Serial.println("closing connection\n");
   client.stop();
 }
+
 
 void InitESPNow() {
   WiFi.disconnect();
@@ -549,6 +553,7 @@ void setup(){
   WiFi.mode(WIFI_STA);
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
+  Serial.print("LOCAL IP: "); Serial.println(WiFi.localIP());
   // Init ESPNow with a fallback logic
   InitESPNow();
   // Once ESPNow is successfully Init, we will register for Send CB to
