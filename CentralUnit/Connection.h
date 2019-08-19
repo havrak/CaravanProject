@@ -4,7 +4,7 @@
 
 #ifndef CONNECTION_H
 #define CONNECTION_H
-#include "Olimex.h"
+#include "NextionObject.h"
 #include <WiFi.h>
 #include <EEPROM.h>
 
@@ -23,11 +23,11 @@ class Connection{
         isTelnetConnectionRunning = true;
       }
     }
-    void updateDataOnOlimex(Olimex olimex){
+    //void updateDataOnNextion(NextionObject olimex){
       
-    }
+    //}
     // also will change configuration on mikrotik trought telnet
-    void fetchNewConfigFromOlimex(){
+    void fetchNewConfigFromNextion(){
       
     }
     // will do 

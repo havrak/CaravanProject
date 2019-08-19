@@ -18,10 +18,10 @@ class Water : public UnitAbstract{
     Water(){
       
     }
-    void updateDataOnOlimex(Olimex olimex){
+    void updateDataOnNextion(NextionObject nextion){
       
     }
-    void fetchNewConfigFromOlimex(){
+    void fetchNewConfigFromNextion(){
       
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit

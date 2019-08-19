@@ -9,7 +9,7 @@
 #include <EEPROM.h>
 #include <NTPClient.h>
 #include <WiFiUdp.h>
-#include "Olimex.h"
+#include "NextionObject.h"
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -45,7 +45,7 @@ enum SlaveTypes{
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
 bool updateLocks[slaveTypesNumber];
 
-Olimex olimex;
+NextionObject nextionObject;
 
 Power power;
 Security security;
@@ -547,6 +547,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 }
 
 void setup(){
+  nextionObject.printHi();
   Serial.begin(115200);
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
@@ -593,12 +594,13 @@ void setup(){
 
 }
 
-
+int test = 0;
 void loop(){
-
-  while(!timeClient.update()) {
+  
+  while(!timeClient.update() && test<5) {
     timeClient.setTimeOffset(timeOffset);
     timeClient.forceUpdate();
+    test++;
   }
   // The formattedDate comes with the following format:
   // 2018-05-28T16:00:13Z

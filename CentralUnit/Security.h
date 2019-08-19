@@ -9,7 +9,8 @@ class Security : public UnitAbstract{
     struct Data{
       bool state;
       byte numberOfSatellites;
-      // what does that even mean
+      float latitude;
+      float longitude;
       double accuraccy;
      
       
@@ -19,10 +20,10 @@ class Security : public UnitAbstract{
     Security(){
       
     }
-    void updateDataOnOlimex(Olimex olimex){
+    void updateDataOnNextion(NextionObject nextion){
       
     }
-    void fetchNewConfigFromOlimex(){
+    void fetchNewConfigFromNextion(){
       
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
@@ -46,6 +47,13 @@ class Security : public UnitAbstract{
     }
     double getAccuraccy(){
       return data.accuraccy;
+    }
+    float getLatitude(){
+      return data.latitude;
+      
+    }
+    float getLongitude(){
+      return data.longitude;  
     }
 };
 #endif SECURITY_H
