@@ -4,7 +4,6 @@
 
 #ifndef TEMPERATURES_H
 #define TEMPERATURES_H
-#include "NextionObject.h"
 #include <EEPROM.h>
 // all calculation of water levels will be done on sensor unit
 // first portion of structure are data from unit, second is configuration (seperated by space)
@@ -13,12 +12,12 @@ class Temperatures{
     struct Data{
 
     };
-    
+
     Data data;
     Temperatures(){
       
     }
-    void updateDataOnNextion(NextionObject nextion){
+    void updateData(){
       
     }
     void fetchNewConfigFromNextion(){

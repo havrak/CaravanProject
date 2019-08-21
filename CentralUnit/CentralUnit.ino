@@ -8,8 +8,8 @@
 #include <WebServer.h>
 #include <EEPROM.h>
 #include <NTPClient.h>
+#include <Nextion.h>
 #include <WiFiUdp.h>
-#include "NextionObject.h"
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -45,8 +45,23 @@ enum SlaveTypes{
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
 bool updateLocks[slaveTypesNumber];
 
-NextionObject nextionObject;
+//NextionObject nextionObject;
+NexButton b1 = NexButton(0, 9, "b1");  // Button added
+NexTouch *nex_listen_list[] = {
+  &b1,  // Button added
+};
+    void b1PushCallback(void *ptr)  // Press event for button b1
+    {
+      digitalWrite(13, HIGH);  // Turn ON internal LED
+    }  // End of press event
 
+    void b1PopCallback(void *ptr)  // Release event for button b1
+    {
+      digitalWrite(13, LOW);  // Turn OFF internal LED
+    }
+
+
+    
 Power power;
 Security security;
 Water water;
@@ -547,7 +562,6 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 }
 
 void setup(){
-  nextionObject.printHi();
   Serial.begin(115200);
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
@@ -583,6 +597,7 @@ void setup(){
   //EEPROM.write(0, 64);
 
   //EEPROM.commit();
+  NexButton b1 = NexButton(0, 9, "b1");  // Button added
 
   //int temp = EEPROM.read(0);
   //Serial.print("On 0 is: "); Serial.println(temp);

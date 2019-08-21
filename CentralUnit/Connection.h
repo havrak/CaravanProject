@@ -4,7 +4,6 @@
 
 #ifndef CONNECTION_H
 #define CONNECTION_H
-#include "NextionObject.h"
 #include <WiFi.h>
 #include <EEPROM.h>
 
@@ -16,22 +15,22 @@ class Connection{
     double UpLink;
     // diffrent evaluation based on source AP, LTE
     double SignalStrenght;
-
+    
     Connection(IPAddress ip){
       server = ip;
       if (client.connect(server, 23)) {
         isTelnetConnectionRunning = true;
       }
     }
-    //void updateDataOnNextion(NextionObject olimex){
+    void updateYourData(){
       
-    //}
+    }
     // also will change configuration on mikrotik trought telnet
-    void fetchNewConfigFromNextion(){
+    void updateDataOnNextion(){
       
     }
     // will do 
-    void updateYourData(){
+    void updateYourDataFromMikrotik(){
       
     };
 
