@@ -1,8 +1,7 @@
-TODO:
-+ Olimex (object) can be global variable???
-+ wheels object
+#TODO:
 + consider rights to data (private x public)
-+ Solo class for weather
++ functions to save configuration to EEPROM (on unit)
 
-+ functions to save configuration to EEPROM
+#Weather:
++ wind speed scale (https://www.meteogram.cz/beaufortova-stupnice-rychlosti-vetru/)
 

@@ -18,6 +18,7 @@
 #include "Water.h"
 #include "Connection.h"
 #include "Temperatures.h"
+#include "Weather.h"
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
