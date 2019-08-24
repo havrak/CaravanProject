@@ -4,6 +4,13 @@
 // to get sample optput enter https://api.openweathermap.org/data/2.5/weather?lat=50.1636703&lon=14.3836175&units=metric&cnt=1&APPID=fabd54dece7005a11d0cd555f2384df9
 // to browser
 
+
+// display
+// 1. temp
+// 2. temp min, max
+// 3. windDirection (windSpeed)
+// 4. clouds (in %)
+// 5. location
 #ifndef WEATHER_H
 #define WEATHER_H
 #include <WiFi.h>
@@ -57,12 +64,20 @@ class Weather{
       // weather info
       int weatherID;
       int windDeg;
+      
       int clouds;
+
+      // wind ($windDiresciton ($windSpeed ms1))
+      
+      String windDirection;
       float windSpeed;
+      
       String location;
+      // all in one
       String temperature;
       String temperatureMax;
       String temperatureMin;
+      
       String weather;
       String description;
       String idString;
@@ -84,7 +99,7 @@ class Weather{
           }
           // We now create a URI for the request
           // replace with yours APPID
-          String url = "/data/2.5/weather?lat="+lat+"&lon="+lon+"&units=metric&cnt=1&APPID=fabd54dece7005a11d0cd555f2384df9";
+          String url = "/data/2.5/weather?lat="+lat+"&lon="+lon+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
           // This will send the request to the server
           client.print(String("GET ") + url + " HTTP/1.1\r\n" +
             "Host: " + servername + "\r\n" +
@@ -127,15 +142,44 @@ class Weather{
           temperatureMIn = root["list"]["main"]["temp_min"];
           timeS = root["list"]["dt_txt"];
           weatherID = root["list"]["weather"]["id"].toInt();
-          wingDeg = root["list"]["wind"]["deg"].toInt();
-          wingSpeed = root["list"]["wind"]["speed"].toInt();
+          windDeg = root["list"]["wind"]["deg"].toInt();
+          windSpeed = root["list"]["wind"]["speed"].toInt();
           clouds = root["list"]["clouds"]["all"].toInt();
+          setWindDirection(){
+            
+          }
           
           Serial.print("\nWeatherID: ");
           Serial.print(weatherID);
           // same serial is used for nextion as for debug
           endNextionCommand();
 
+      }
+
+      void setWindDirection(){
+        if(windSpeed != 0){
+          return; 
+        }
+        if(winDeg >= 338){
+          windDirection = "Severní";  
+        }else if(windDeg >= 292){
+          windDirection = "Severozápadní"; 
+        }else if(windDeg >= 248){
+          windDirection = "Západní";
+        }else if(windDeg >= 202){
+          windDirection = "Jihozápadní"; 
+        }else if(windDeg >= 158){
+          windDirection = "Jižní"; 
+        }else if(windDeg >= 112){
+          windDirection = "Jihovýchodní"; 
+        }else if(windDeg >= 112){
+          windDirection = "Východní"; 
+        }else if(windDeg >= 68){
+          windDirection = "Severovýchodní"; 
+        }else if(windDeg >= 22){
+          windDirection = "Severní"; 
+        }
+        
       }
 
 };
