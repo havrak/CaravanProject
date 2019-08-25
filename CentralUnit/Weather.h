@@ -1,5 +1,7 @@
 // Weather object 
 // inspired by http://educ8s.tv/esp32-weather-station/`
+// uses ArduinoJSON v6 (inspiration uses v5)
+// https://arduinojson.org/v6/api/jsondocument/
 // Display on Nextion Location!!!!!
 // to get sample optput enter https://api.openweathermap.org/data/2.5/weather?lat=50.1636703&lon=14.3836175&units=metric&cnt=1&APPID=fabd54dece7005a11d0cd555f2384df9
 // to browser
@@ -14,6 +16,7 @@
 #ifndef WEATHER_H
 #define WEATHER_H
 #include <WiFi.h>
+#include <string>     // std::string, std::to_string
 #include <ArduinoJson.h>    //https://github.com/bblanchon/ArduinoJson
 #include <EEPROM.h>
 
@@ -21,37 +24,21 @@
 class Weather{
   public:    
     
-    Weather(float lat, float lon){
+    Weather(float newLat, float newLon){
       getWeather();
-      this.lat = lat;
-      this.lon = lon;
+      lat = newLat;
+      lon = newLon;
     }
 
 
-    void setNewPosition(float lat, float lon){
-      this.lat = lat;
-      this.lon = lon;
+    void setNewPosition(float newLat, float newLon){
+      lat = newLat;
+      lon = newLon;
     }
     // also will change configuration on mikrotik trought telnet
     void updateDataOnNextion(){
       
     }
-    // will do 
-    void updateYourDataFromMikrotik(){
-      
-    };
-
-    // geters for variables in scructure for testing purpouse 
-    byte getTypeOfConnection(){
-      return typeOfConnection;
-    }
-    double getUpLink(){
-      return UpLink;  
-    }
-    double getSignalStrenght(){
-      return SignalStrenght;
-    }
-
     
     private: 
       WiFiClient client;
@@ -95,11 +82,13 @@ class Weather{
           String result ="";
           const int httpPort = 80;
           if (!client.connect(servername, httpPort)) {
-            return;
+            return false;
           }
           // We now create a URI for the request
           // replace with yours APPID
-          String url = "/data/2.5/weather?lat="+lat+"&lon="+lon+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
+          String latStr = String(lat, 5);
+          String lonStr = String(lon, 5);
+          String url = "/data/2.5/weather?lat="+latStr+"&lon="+lonStr+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
           // This will send the request to the server
           client.print(String("GET ") + url + " HTTP/1.1\r\n" +
             "Host: " + servername + "\r\n" +
@@ -122,32 +111,34 @@ class Weather{
           result.replace('[', ' ');
           result.replace(']', ' ');
 
+          
           char jsonArray [result.length()+1];
           result.toCharArray(jsonArray,sizeof(jsonArray));
           jsonArray[result.length() + 1] = '\0';
 
-          StaticJsonBuffer<1024> json_buf;
-          JsonObject &root = json_buf.parseObject(jsonArray);
-          if (!root.success())
-          {
+          StaticJsonDocument<1024> jsonDoc;
+          // check if it works
+          DeserializationError err = deserializeJson(jsonDoc, jsonArray);
+          if (err != DeserializationError::Ok ){
             Serial.println("parseObject() failed");
             return false;
           }
-
-          location = root["list"]["sys"]["name"];
-          temperature = root["list"]["main"]["temp"];
-          weather = root["list"]["weather"]["main"];
-          description = root["list"]["weather"]["description"];
-          temperatureMax = root["list"]["main"]["temp_max"];
-          temperatureMIn = root["list"]["main"]["temp_min"];
-          timeS = root["list"]["dt_txt"];
-          weatherID = root["list"]["weather"]["id"].toInt();
-          windDeg = root["list"]["wind"]["deg"].toInt();
-          windSpeed = root["list"]["wind"]["speed"].toInt();
-          clouds = root["list"]["clouds"]["all"].toInt();
-          setWindDirection(){
-            
-          }
+          JsonObject root = jsonDoc.as<JsonObject>();
+         
+          // const char* is so obstructed in JsonObject that you need conversion to const char* to convert it to string
+          location = String((const char*)root["list"]["sys"]["name"]);
+          temperature = String((const char*)root["list"]["main"]["temp"]);
+          weather = String((const char*)root["list"]["weather"]["main"]);
+          description = String((const char*)root["list"]["weather"]["description"]);
+          temperatureMax = String((const char*)root["list"]["main"]["temp_max"]);
+          temperatureMin = String((const char*)root["list"]["main"]["temp_min"]);
+          timeS = String((const char*)root["list"]["dt_txt"]);
+          
+          weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
+          windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
+          windSpeed = String((const char*)root["list"]["wind"]["speed"]).toInt();
+          clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
+          setWindDirection();
           
           Serial.print("\nWeatherID: ");
           Serial.print(weatherID);
@@ -160,7 +151,7 @@ class Weather{
         if(windSpeed != 0){
           return; 
         }
-        if(winDeg >= 338){
+        if(windDeg >= 338){
           windDirection = "Severní";  
         }else if(windDeg >= 292){
           windDirection = "Severozápadní"; 

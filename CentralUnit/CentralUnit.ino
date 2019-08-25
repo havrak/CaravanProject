@@ -7,9 +7,9 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <EEPROM.h>
-#include <NTPClient.h>
+//#include <NTPClient.h>
 #include <Nextion.h>
-#include <WiFiUdp.h>
+//#include <WiFiUdp.h>
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -19,6 +19,7 @@
 #include "Connection.h"
 #include "Temperatures.h"
 #include "Weather.h"
+//#include "Time.h"
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
@@ -27,16 +28,16 @@
 
 #define stringify( name ) # name
 
-WiFiUDP Udp;
-NTPClient timeClient(Udp);
+//WiFiUDP Udp;
+//NTPClient timeClient(Udp);
+IPAddress mikrotikIP(1,1,1,1);
 WebServer server(80);
 
-String formattedDate;
-String dayStamp;
-String timeStamp;
-int timeOffset = 7200;
+//String formattedDate;
+//String dayStamp;
+//String timeStamp;
+//int timeOffset = 7200;
 
-IPAddress ip(1,1,1,1);
 
 const int slaveTypesNumber = 6;
 enum SlaveTypes{
@@ -61,15 +62,15 @@ NexTouch *nex_listen_list[] = {
       digitalWrite(13, LOW);  // Turn OFF internal LED
     }
 
-
-    
 Power power;
 Security security;
 Water water;
 Wheels wheels;
 Heating heating;
-Connection connection(ip);
+Connection connection(mikrotikIP);
 Temperatures temperatures;
+Weather weather;
+Time timeObj;
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -594,7 +595,8 @@ void setup(){
   });
 
   server.onNotFound(handleNotFound);
-
+  server.begin();
+  
   //EEPROM.write(0, 64);
 
   //EEPROM.commit();
@@ -603,36 +605,12 @@ void setup(){
   //int temp = EEPROM.read(0);
   //Serial.print("On 0 is: "); Serial.println(temp);
   //Serial.print("On 0 is: "); Serial.println(EEPROM.read(0));
-  timeClient.begin();
-  timeClient.setTimeOffset(timeOffset);
-  timeClient.forceUpdate();
-  server.begin();
+
+  
 
 }
 
-int test = 0;
 void loop(){
-  
-  while(!timeClient.update() && test<5) {
-    timeClient.setTimeOffset(timeOffset);
-    timeClient.forceUpdate();
-    test++;
-  }
-  // The formattedDate comes with the following format:
-  // 2018-05-28T16:00:13Z
-  // will be send to olimex
-  formattedDate = timeClient.getFormattedDate();
-  Serial.println(formattedDate);
-
-  // Extract date
-  int splitT = formattedDate.indexOf("T");
-  dayStamp = formattedDate.substring(0, splitT);
-  Serial.print("DATE: ");
-  Serial.println(dayStamp);
-  // Extract time
-  timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
-  Serial.print("HOUR: ");
-  Serial.println(timeStamp);
   //delay(1000);
 
   //if (eth_connected) {
