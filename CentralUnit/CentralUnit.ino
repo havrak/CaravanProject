@@ -7,16 +7,18 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <EEPROM.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
+//#include <WiFiUdp.h>
 //#include <NTPClient.h>
 #include <Nextion.h>
-//#include <WiFiUdp.h>
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
 #include "Wheels.h"
 #include "Security.h"
 #include "Water.h"
-#include "Connection.h"
+//#include "Connection.h"
 #include "Temperatures.h"
 #include "Weather.h"
 //#include "Time.h"
@@ -28,15 +30,15 @@
 
 #define stringify( name ) # name
 
-//WiFiUDP Udp;
-//NTPClient timeClient(Udp);
+WiFiUDP Udp;
+NTPClient timeClient(Udp);
 IPAddress mikrotikIP(1,1,1,1);
 WebServer server(80);
 
-//String formattedDate;
-//String dayStamp;
-//String timeStamp;
-//int timeOffset = 7200;
+String formattedDate;
+String dayStamp;
+String timeStamp;
+int timeOffset = 7200;
 
 
 const int slaveTypesNumber = 6;
@@ -67,10 +69,10 @@ Security security;
 Water water;
 Wheels wheels;
 Heating heating;
-Connection connection(mikrotikIP);
+//Connection connection(mikrotikIP);
 Temperatures temperatures;
-Weather weather;
-Time timeObj;
+Weather weather(0,0);
+//Time timeObj;
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -187,7 +189,7 @@ void printAddress(uint8_t addr[]){
 // IMPLEMENT
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
 
-static bool eth_connected = false;
+static bool ethConnected = false;
 const short callsign = 999;
 
 
@@ -233,15 +235,15 @@ void WiFiEvent(WiFiEvent_t event){
       Serial.print(", ");
       Serial.print(ETH.linkSpeed());
       Serial.println("Mbps");
-      eth_connected = true;
+      ethConnected = true;
       break;
     case SYSTEM_EVENT_ETH_DISCONNECTED:
       Serial.println("ETH Disconnected");
-      eth_connected = false;
+      ethConnected = false;
       break;
     case SYSTEM_EVENT_ETH_STOP:
       Serial.println("ETH Stopped");
-      eth_connected = false;
+      ethConnected = false;
       break;
     default:
       break;
@@ -577,7 +579,7 @@ void setup(){
   // get the status of Trasnmitted packet
   esp_now_register_send_cb(OnDataSent);
   esp_now_register_recv_cb(OnDataRecv);
-  delay(2000);
+  //delay(2000);
   // summer / winter time or manual adjustment
   
   //
@@ -602,6 +604,10 @@ void setup(){
   //EEPROM.commit();
   NexButton b1 = NexButton(0, 9, "b1");  // Button added
 
+  timeClient.begin();
+  timeClient.setTimeOffset(7200);
+  timeClient.forceUpdate();
+  
   //int temp = EEPROM.read(0);
   //Serial.print("On 0 is: "); Serial.println(temp);
   //Serial.print("On 0 is: "); Serial.println(EEPROM.read(0));
@@ -609,11 +615,27 @@ void setup(){
   
 
 }
-
+int interationCounter;
 void loop(){
   //delay(1000);
+  // TODO: update only some iterations
+  while(!timeClient.update()) {
+   timeClient.setTimeOffset(timeOffset);
+   timeClient.forceUpdate();
+  }
+  //formattedDate = timeClient.getFormattedDate();
+  Serial.println(formattedDate);
 
-  //if (eth_connected) {
+  // Extract date
+  int splitT = formattedDate.indexOf("T");
+  dayStamp = formattedDate.substring(0, splitT);
+  Serial.print("DATE: ");
+  Serial.println(dayStamp);
+  // Exract time
+  timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
+  Serial.print("HOUR: ");
+  Serial.println(timeStamp);
+  //if (ethConnected) {
   //  testClient("duckduckgo.com", 80);
   //  server.handleClient();
   //}
@@ -626,8 +648,7 @@ void loop(){
     uint8_t data = 6;
     //esp_err_t result = esp_now_send(espInfo[0].peer_addr, &data, sizeof(data));
     esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
-  }
-  else {
+  }else {
     // No slave found to process
   }
 }

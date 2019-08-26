@@ -36,15 +36,16 @@ class Weather{
     }
     // also will change configuration on mikrotik trought telnet
     void updateDataOnNextion(int hours){
+      String command;
       endNextionCommand();
-      String command = "textWTemp.txt="+temperature+"°C";
+      command = "textWTemp.txt="+temperature+"°C";
       Serial.print(command);
       endNextionCommand();
-      String command = "textWMinMax.txt="+temperatureMax+"°C ,"+temperatureMin+"°C";
+      command = "textWMinMax.txt="+temperatureMax+"°C ,"+temperatureMin+"°C";
       Serial.print(command);
       endNextionCommand();
       // check field size
-      String command;
+      command;
       if(windSpeed == 0){
         command = "textWWind.txt="+windDirection+" ("+String(windSpeed)+"m/s)";
       }else{
@@ -68,11 +69,11 @@ class Weather{
       }else{
         coverage = "jasno";
       }
-      String command = "textWCloud.txt="+coverage;
+      command = "textWCloud.txt="+coverage;
       Serial.print(command);
       endNextionCommand();
       // make substring or whatever
-      String command = "textWLocation.txt="+location;
+      command = "textWLocation.txt="+location;
       Serial.print(command);
       endNextionCommand();
       // set icon according to weather id provided by openweather
