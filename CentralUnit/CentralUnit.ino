@@ -41,9 +41,9 @@ String timeStamp;
 int timeOffset = 7200;
 
 
-const int slaveTypesNumber = 6;
+const int slaveTypesNumber = 5;
 enum SlaveTypes{
-  SECURITY,WATER,WHEELS,HEATING,POWER,TEMP
+  SECURITY,WATER,WHEELS,HEATING,POWER
 };
 // TODO: find out how callbacks are handled
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
@@ -72,7 +72,6 @@ Heating heating;
 //Connection connection(mikrotikIP);
 Temperatures temperatures;
 Weather weather(0,0);
-//Time timeObj;
 
 // remove after testing
 const char* slaveTypesNames[] =
@@ -469,21 +468,40 @@ void deletePeer(esp_now_peer_info_t toDelete) {
   }
 }
 
-/*
+
 uint8_t pos = 0;
 // send data
 // will have enum in argument will affect what data is send and to whom
-void sendData() {
+void sendData(SlaveTypes type) {
+  uint8_t test = 1648;
   pos++;
   //const uint8_t *peer_addr = .peer_addr;
-  uint8_t bs[sizeof(test)];
-  memcpy(bs, &test, sizeof(test));
-  for(int j=0; j < sizeof(bs); j++){
-    Serial.print(bs[j]); Serial.print(" ");
-  }
+  // SECURITY,WATER,WHEELS,HEATING,POWER
   Serial.println();
-  Serial.print("Sending No.: "); Serial.println(pos);
-  //esp_err_t result = esp_now_send(peer_addr, bs, sizeof(bs));
+  uint8_t dataToBeSent;
+  switch(type){
+    case SECURITY:{
+      dataToBeSent = security.getDataToBeSend();
+      break;
+    }
+    case WATER:{
+      dataToBeSent = water.getDataToBeSend();
+      break;
+    }
+    case WHEELS:{
+      dataToBeSent = wheels.getDataToBeSend();
+      break;
+    }
+    case HEATING:{
+      dataToBeSent = heating.getDataToBeSend();
+      break;
+    }
+    case POWER:{
+      dataToBeSent = power.getDataToBeSend();
+      break;
+    }
+  }
+  esp_err_t result = esp_now_send(getEspInfoForType(type).peer_addr, &dataToBeSent, sizeof(dataToBeSent));
   Serial.print("Send Status: ");
   if (result == ESP_OK) {
     Serial.println("Success");
@@ -502,7 +520,7 @@ void sendData() {
     Serial.println("Not sure what happened");
   }
 }
-*/
+
 
 // callback when data is sent from Master to Slave
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
@@ -616,6 +634,7 @@ void setup(){
 
 }
 int interationCounter;
+// check if mac exist -> if not no action
 void loop(){
   //delay(1000);
   // TODO: update only some iterations
