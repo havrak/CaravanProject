@@ -1,4 +1,4 @@
-// Weather object 
+// Weather object
 // inspired by http://educ8s.tv/esp32-weather-station/`
 // uses ArduinoJSON v6 (inspiration uses v5)
 // https://arduinojson.org/v6/api/jsondocument/
@@ -22,8 +22,8 @@
 
 
 class Weather{
-  public:    
-    
+  public:
+
     Weather(float newLat, float newLon){
       getWeather();
       lat = newLat;
@@ -36,11 +36,110 @@ class Weather{
       lon = newLon;
     }
     // also will change configuration on mikrotik trought telnet
-    void updateDataOnNextion(){
-      
+    void updateDataOnNextion(int hours){
+      // set icon according to weather id provided by openweather
+      switch(weatherID){
+        // Cloudy or clear sky
+        case 800: 
+          if(hours >4 || hours < 20){
+            endNextionCommand();
+            String command = "imgWeather.pic=42";
+            Serial.print(command);
+            endNextionCommand();
+          }else{
+            endNextionCommand();
+            String command = "imgWeather.pic=43";
+            Serial.print(command);
+            endNextionCommand();
+          }
+          break;
+        case 801: 
+           if(hours >4 || hours < 20){
+            endNextionCommand();
+            String command = "imgWeather.pic=44";
+            Serial.print(command);
+            endNextionCommand();
+          }else{
+            endNextionCommand();
+            String command = "imgWeather.pic=45";
+            Serial.print(command);
+            endNextionCommand();
+          }
+          break;
+        case 802: drawModrateCloud(); break;
+        case 803: drawModrateCloud(); break;
+        case 804: 
+          endNextionCommand();
+          String command = "imgWeather.pic=47";
+          Serial.print(command);
+          endNextionCommand();
+          break;
+        
+        // Strom
+        case 200: drawStrormWithRain(); break;
+        case 201: drawStrormWithRain(); break;
+        case 202: drawStrormWithRain(); break;
+        case 210: drawStorm(); break;
+        case 211: drawStorm(); break;
+        case 212: drawStorm(); break;
+        case 221: drawStorm(); break;
+        case 230: drawStromWithDrizzle(hours); break;
+        case 231: drawStromWithDrizzle(hours); break;
+        case 232: drawStromWithDrizzle(hours); break;
+        
+        // Drizzle
+        case 300: drawDrizzle(hours);  break;
+        case 301: drawDrizzle(hours); break;
+        case 302: drawDrizzle(hours); break;
+        case 310: drawDrizzle(hours);  break;
+        case 311: drawDrizzle(hours); break;
+        case 312: drawHeavyDrizzle(hours);  break;
+        case 313: drawHeavyDrizzle(hours);  break;
+        case 314: drawHeavyDrizzle(hours);  break;
+        case 321: drawHeavyDrizzle(hours);  break;
+
+        // Rain
+        case 500: drawRain();  break;
+        case 501: drawRain();  break;
+        case 502: drawHeavyRain();  break;
+        case 503: drawHeavyRain();  break;
+        case 504: drawHeavyRain();  break;
+        case 511: drawOtherRain();  break;
+        case 520: drawOtherRain();  break;
+        case 521: drawOtherRain();  break;
+        case 522: drawHeavyRain()  break;
+        case 531: drawOtherRain();  break;
+
+        // Snow
+        case 600: drawSnow(hours);  break;
+        case 601: drawSnow(hours);  break;
+        case 602: drawHeavySnow();  break;
+        case 611: drawHeavySnow();  break;
+        case 612: drawHeavySnow();  break;
+        case 613: drawHeavySnow(); break;
+        case 615: drawSnowWithRain();  break;
+        case 616: drawSnowWithRain(); break;
+        case 620: drawHeavySnow();  break;
+        case 621: drawHeavySnow();  break;
+        case 622: drawHeavySnow();  break;
+        
+        // Atmosphere
+        case 701: drawLimitedVisibility();  break;
+        case 711: drawLowVisibility();  break;
+        case 721: drawLimitedVisibility();  break;
+        case 731: drawLowVisibility();  break;
+        case 741: drawLimitedVisibility();  break;
+        case 751: drawLowVisibility();  break;
+        case 761: drawLowVisibility();  break;
+        case 762: drawLowVisibility();  break;
+        case 771: drawLimitedVisibility();  break;
+        case 781: drawTornado  break;
+
+
+      }
     }
-    
-    private: 
+
+    private:
       WiFiClient client;
       // for some reason IP cannot be created here and needs to be passed from main
       char* servername ="api.openweathermap.org";  // remote server we will connect to
@@ -51,25 +150,25 @@ class Weather{
       // weather info
       int weatherID;
       int windDeg;
-      
+
       int clouds;
 
       // wind ($windDiresciton ($windSpeed ms1))
-      
+
       String windDirection;
       float windSpeed;
-      
+
       String location;
       // all in one
       String temperature;
       String temperatureMax;
       String temperatureMin;
-      
+
       String weather;
       String description;
       String idString;
       String timeS;
-          
+
       void endNextionCommand()
       {
         Serial.write(0xff);
@@ -77,7 +176,7 @@ class Weather{
         Serial.write(0xff);
       }
 
-      
+
       bool getWeather(){
           String result ="";
           const int httpPort = 80;
@@ -111,7 +210,7 @@ class Weather{
           result.replace('[', ' ');
           result.replace(']', ' ');
 
-          
+
           char jsonArray [result.length()+1];
           result.toCharArray(jsonArray,sizeof(jsonArray));
           jsonArray[result.length() + 1] = '\0';
@@ -124,7 +223,7 @@ class Weather{
             return false;
           }
           JsonObject root = jsonDoc.as<JsonObject>();
-         
+
           // const char* is so obstructed in JsonObject that you need conversion to const char* to convert it to string
           location = String((const char*)root["list"]["sys"]["name"]);
           temperature = String((const char*)root["list"]["main"]["temp"]);
@@ -133,13 +232,13 @@ class Weather{
           temperatureMax = String((const char*)root["list"]["main"]["temp_max"]);
           temperatureMin = String((const char*)root["list"]["main"]["temp_min"]);
           timeS = String((const char*)root["list"]["dt_txt"]);
-          
+
           weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
           windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
           windSpeed = String((const char*)root["list"]["wind"]["speed"]).toInt();
           clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
           setWindDirection();
-          
+
           Serial.print("\nWeatherID: ");
           Serial.print(weatherID);
           // same serial is used for nextion as for debug
@@ -149,29 +248,158 @@ class Weather{
 
       void setWindDirection(){
         if(windSpeed != 0){
-          return; 
+          return;
         }
         if(windDeg >= 338){
-          windDirection = "Severní";  
+          windDirection = "Severní";
         }else if(windDeg >= 292){
-          windDirection = "Severozápadní"; 
+          windDirection = "Severozápadní";
         }else if(windDeg >= 248){
           windDirection = "Západní";
         }else if(windDeg >= 202){
-          windDirection = "Jihozápadní"; 
+          windDirection = "Jihozápadní";
         }else if(windDeg >= 158){
-          windDirection = "Jižní"; 
+          windDirection = "Jižní";
         }else if(windDeg >= 112){
-          windDirection = "Jihovýchodní"; 
+          windDirection = "Jihovýchodní";
         }else if(windDeg >= 112){
-          windDirection = "Východní"; 
+          windDirection = "Východní";
         }else if(windDeg >= 68){
-          windDirection = "Severovýchodní"; 
+          windDirection = "Severovýchodní";
         }else if(windDeg >= 22){
-          windDirection = "Severní"; 
+          windDirection = "Severní";
+        }
+      }
+      
+      void drawModrateCloud(){
+        endNextionCommand();
+        String command = "imgWeather.pic=46";
+        Serial.print(command);
+        endNextionCommand();
+      }
+      void drawStrormWithRain(){
+        endNextionCommand();
+        String command = "imgWeather.pic=23";
+        Serial.print(command);
+        endNextionCommand();        
+      }
+      void drawStorm(){
+        endNextionCommand();
+        String command = "imgWeather.pic=24";
+        Serial.print(command);
+        endNextionCommand(); 
+      }
+      void drawStromWithDrizzle(int hours){
+        if(hours >4 || hours < 20){
+          endNextionCommand();
+          String command = "imgWeather.pic=25";
+          Serial.print(command);
+          endNextionCommand();
+        }else{
+          endNextionCommand();
+          String command = "imgWeather.pic=26";
+          Serial.print(command);
+          endNextionCommand();
+        }
+      }
+
+      void drawHeavyDrizzle(int hours){
+        if(hours >4 || hours < 20){
+          endNextionCommand();
+          String command = "imgWeather.pic=25";
+          Serial.print(command);
+          endNextionCommand();
+        }else{
+          endNextionCommand();
+          String command = "imgWeather.pic=26";
+          Serial.print(command);
+          endNextionCommand();
         }
         
       }
+      void drawDrizzle(int hours){
+        if(hours >4 || hours < 20){
+          endNextionCommand();
+          String command = "imgWeather.pic=29";
+          Serial.print(command);
+          endNextionCommand();
+        }else{
+          endNextionCommand();
+          String command = "imgWeather.pic=30";
+          Serial.print(command);
+          endNextionCommand();
+        }
+      }
+      void drawOtherRain(){
+        endNextionCommand();
+        String command = "imgWeather.pic=33";
+        Serial.print(command);
+        endNextionCommand();
+      }
+      void drawRain(){
+        endNextionCommand();
+        String command = "imgWeather.pic=31";
+        Serial.print(command);
+        endNextionCommand();
+      }
+      void drawHeavyRain(){
+        endNextionCommand();
+        String command = "imgWeather.pic=32";
+        Serial.print(command);
+        endNextionCommand();
+      }
 
+      void drawSnow(){
+        if(hours >4 || hours < 20){
+          endNextionCommand();
+          String command = "imgWeather.pic=34";
+          Serial.print(command);
+          endNextionCommand();
+        }else{
+          endNextionCommand();
+          String command = "imgWeather.pic=35";
+          Serial.print(command);
+          endNextionCommand();
+        }
+      }
+      
+      void drawHeavySnow(){
+        endNextionCommand();
+        String command = "imgWeather.pic=36";
+        Serial.print(command);
+        endNextionCommand();
+      }
+      
+      void drawSnowWithRain(){
+        endNextionCommand();
+        String command = "imgWeather.pic=37";
+        Serial.print(command);
+        endNextionCommand();
+      }
+      void drawLowVisibility(){
+        endNextionCommand();
+        String command = "imgWeather.pic=40";
+        Serial.print(command);
+        endNextionCommand(); 
+      }
+      void drawLimitedVisibility(int hours){
+        if(hours >4 || hours < 20){
+          endNextionCommand();
+          String command = "imgWeather.pic=38";
+          Serial.print(command);
+          endNextionCommand();
+        }else{
+          endNextionCommand();
+          String command = "imgWeather.pic=39";
+          Serial.print(command);
+          endNextionCommand();
+        }
+      }
+      void drawTornado(){
+        endNextionCommand();
+        String command = "imgWeather.pic=41";
+        Serial.print(command);
+        endNextionCommand(); 
+      }
 };
 #endif WEATHER_H
