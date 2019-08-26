@@ -30,13 +30,51 @@ class Weather{
       lon = newLon;
     }
 
-
     void setNewPosition(float newLat, float newLon){
       lat = newLat;
       lon = newLon;
     }
     // also will change configuration on mikrotik trought telnet
     void updateDataOnNextion(int hours){
+      endNextionCommand();
+      String command = "textWTemp.txt="+temperature+"°C";
+      Serial.print(command);
+      endNextionCommand();
+      String command = "textWMinMax.txt="+temperatureMax+"°C ,"+temperatureMin+"°C";
+      Serial.print(command);
+      endNextionCommand();
+      // check field size
+      String command;
+      if(windSpeed == 0){
+        command = "textWWind.txt="+windDirection+" ("+String(windSpeed)+"m/s)";
+      }else{
+        command = "textWWind.txt="+windDirection+" ("+String(windSpeed)+"m/s)";
+      }
+      Serial.print(command);
+      endNextionCommand();
+      // Add zataženo, oblačno
+      // clouds == 0 ??
+      String coverage;
+      if(clouds == 100){
+        coverage = "zataženo";
+      }else if(clouds > 87){
+        coverage = "skoro zataženo";
+      }else if(clouds > 62){
+        coverage = "oblačno";
+      }else if(clouds > 37){
+        coverage = "polojasno";
+      }else if(clouds > 12){
+        coverage = "skoro jasno";
+      }else{
+        coverage = "jasno";
+      }
+      String command = "textWCloud.txt="+coverage;
+      Serial.print(command);
+      endNextionCommand();
+      // make substring or whatever
+      String command = "textWLocation.txt="+location;
+      Serial.print(command);
+      endNextionCommand();
       // set icon according to weather id provided by openweather
       switch(weatherID){
         // Cloudy or clear sky
@@ -153,6 +191,7 @@ class Weather{
       int weatherID;
       int windDeg;
 
+      // why int?????
       int clouds;
 
       // wind ($windDiresciton ($windSpeed ms1))
@@ -237,7 +276,7 @@ class Weather{
 
           weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
           windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
-          windSpeed = String((const char*)root["list"]["wind"]["speed"]).toInt();
+          windSpeed = String((const char*)root["list"]["wind"]["speed"]).toFloat();
           clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
           setWindDirection();
 
@@ -247,11 +286,8 @@ class Weather{
           endNextionCommand();
 
       }
-
+      // check it, no need to test for speed zero (will be taken care of in sendDatatoNextion())
       void setWindDirection(){
-        if(windSpeed != 0){
-          return;
-        }
         if(windDeg >= 338){
           windDirection = "Severní";
         }else if(windDeg >= 292){
@@ -264,11 +300,11 @@ class Weather{
           windDirection = "Jižní";
         }else if(windDeg >= 112){
           windDirection = "Jihovýchodní";
-        }else if(windDeg >= 112){
-          windDirection = "Východní";
         }else if(windDeg >= 68){
-          windDirection = "Severovýchodní";
+          windDirection = "Východní";
         }else if(windDeg >= 22){
+          windDirection = "Severovýchodní";
+        }else{
           windDirection = "Severní";
         }
       }
