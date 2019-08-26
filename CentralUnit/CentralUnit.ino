@@ -9,8 +9,6 @@
 #include <EEPROM.h>
 #include <WiFiUdp.h>
 #include <NTPClient.h>
-//#include <WiFiUdp.h>
-//#include <NTPClient.h>
 #include <Nextion.h>
 #include "Water.h"
 #include "Heating.h"
@@ -18,10 +16,9 @@
 #include "Wheels.h"
 #include "Security.h"
 #include "Water.h"
-//#include "Connection.h"
+#include "Connection.h"
 #include "Temperatures.h"
 #include "Weather.h"
-//#include "Time.h"
 
 #define CHANNEL 1
 #define PRINTSCANRESULTS 0
@@ -32,7 +29,6 @@
 
 WiFiUDP Udp;
 NTPClient timeClient(Udp);
-IPAddress mikrotikIP(1,1,1,1);
 WebServer server(80);
 
 String formattedDate;
@@ -69,7 +65,7 @@ Security security;
 Water water;
 Wheels wheels;
 Heating heating;
-//Connection connection(mikrotikIP);
+Connection connection();
 Temperatures temperatures;
 Weather weather(0,0);
 
