@@ -40,7 +40,7 @@ class Weather{
       // set icon according to weather id provided by openweather
       switch(weatherID){
         // Cloudy or clear sky
-        case 800: 
+        case 800: {
           if(hours >4 || hours < 20){
             endNextionCommand();
             String command = "imgWeather.pic=42";
@@ -53,7 +53,8 @@ class Weather{
             endNextionCommand();
           }
           break;
-        case 801: 
+          }
+        case 801:{
            if(hours >4 || hours < 20){
             endNextionCommand();
             String command = "imgWeather.pic=44";
@@ -66,15 +67,16 @@ class Weather{
             endNextionCommand();
           }
           break;
+        }
         case 802: drawModrateCloud(); break;
         case 803: drawModrateCloud(); break;
-        case 804: 
+        case 804:{
           endNextionCommand();
           String command = "imgWeather.pic=47";
           Serial.print(command);
           endNextionCommand();
           break;
-        
+        }
         // Strom
         case 200: drawStrormWithRain(); break;
         case 201: drawStrormWithRain(); break;
@@ -107,7 +109,7 @@ class Weather{
         case 511: drawOtherRain();  break;
         case 520: drawOtherRain();  break;
         case 521: drawOtherRain();  break;
-        case 522: drawHeavyRain()  break;
+        case 522: drawHeavyRain();  break;
         case 531: drawOtherRain();  break;
 
         // Snow
@@ -124,18 +126,18 @@ class Weather{
         case 622: drawHeavySnow();  break;
         
         // Atmosphere
-        case 701: drawLimitedVisibility();  break;
+        case 701: drawLimitedVisibility(hours);  break;
         case 711: drawLowVisibility();  break;
-        case 721: drawLimitedVisibility();  break;
+        case 721: drawLimitedVisibility(hours);  break;
         case 731: drawLowVisibility();  break;
-        case 741: drawLimitedVisibility();  break;
+        case 741: drawLimitedVisibility(hours);  break;
         case 751: drawLowVisibility();  break;
         case 761: drawLowVisibility();  break;
         case 762: drawLowVisibility();  break;
-        case 771: drawLimitedVisibility();  break;
-        case 781: drawTornado  break;
+        case 771: drawLimitedVisibility(hours);  break;
+        case 781: drawTornado();  break;
 
-
+        default: drawUnknownVaules(); break;
       }
     }
 
@@ -349,7 +351,7 @@ class Weather{
         endNextionCommand();
       }
 
-      void drawSnow(){
+      void drawSnow(int hours){
         if(hours >4 || hours < 20){
           endNextionCommand();
           String command = "imgWeather.pic=34";
@@ -400,6 +402,11 @@ class Weather{
         String command = "imgWeather.pic=41";
         Serial.print(command);
         endNextionCommand(); 
+      }
+
+      void drawUnknownVaules(){
+        
+        
       }
 };
 #endif WEATHER_H
