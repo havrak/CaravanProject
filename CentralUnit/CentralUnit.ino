@@ -1,5 +1,5 @@
 /*
-    Code for central unit, runs on OLIMEX EVB
+    Code for central unit, runs on OLIMEX Gateway
 */
 
 #include <ETH.h>
@@ -554,19 +554,19 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     if(!wasNewUnitAdded){
       switch(getSlaveTypeForMAC(mac_addr)){
         case SECURITY:
-          heating.updateYourData(*data);
+          heating.updateYourData(data);
           break;
         case WATER:
-          water.updateYourData(*data);
+          water.updateYourData(data);
           break;
         case WHEELS:
-          wheels.updateYourData(*data);
+          wheels.updateYourData(data);
           break;
         case HEATING:
-          heating.updateYourData(*data);
+          heating.updateYourData(data);
           break;
         case POWER:
-          power.updateYourData(*data);
+          power.updateYourData(data);
           break;
       }
     }

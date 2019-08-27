@@ -1,3 +1,7 @@
+// Clas that takes care of GPS and accelorometer.
+// Prevents caravan from being stolen.
+// gps coordinates will be forwarded to weather.
+
 #ifndef SECURITY_H
 #define SECURITY_H
 #include "UnitAbstract.h"
@@ -28,8 +32,8 @@ class Security : public UnitAbstract{
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
-    void updateYourData(uint8_t newData){
-      
+    void updateYourData(const uint8_t *newData){
+      memcpy(&data, newData, sizeof(data));
     };
     
     uint8_t getDataToBeSend(){
@@ -54,6 +58,16 @@ class Security : public UnitAbstract{
     }
     float getLongitude(){
       return data.longitude;  
+    }
+    void setEstablishedConnection(bool state){
+      isEstablishedConnectionToUnit = state;
+    }
+  private:
+    bool isEstablishedConnectionToUnit;
+    void startEndNextionCommand(){
+      Serial.write(0xff);
+      Serial.write(0xff);
+      Serial.write(0xff);
     }
 };
 #endif SECURITY_H
