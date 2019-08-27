@@ -16,9 +16,7 @@ class Wheels : public UnitAbstract{
     Wheels(){
       
     }
-    void updateYourData(){
-      
-    }
+
     void updateDataOnNextion(){
       
     }
