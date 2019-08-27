@@ -38,8 +38,9 @@ int timeOffset = 7200;
 
 
 const int slaveTypesNumber = 5;
+// need last one whole array will be inicialized with emtpy sicne you cant go back to default value of enum
 enum SlaveTypes{
-  SECURITY,WATER,WHEELS,HEATING,POWER
+  SECURITY,WATER,WHEELS,HEATING,POWER,EMPTY
 };
 // TODO: find out how callbacks are handled
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
@@ -79,6 +80,8 @@ const char* slaveTypesNames[] =
   stringify(POWER),
 };
 
+// millisResetsAfter50Day that would make it impossible (for a while) to remove unactiveChips
+long millisOfLastDataRecv;
 
 // two arrays, index, will be same, access only with methods, size is equal to number of enums in SlaveTypes
 SlaveTypes slaveTypes[slaveTypesNumber];
@@ -91,19 +94,28 @@ esp_now_peer_info_t peerToBePairedWith; // wont be neccesseary here
 esp_now_peer_info_t emptyInfo;
 
 int getIndexOfUntyped(const uint8_t *mac_addr){
-  for(int i; i< sizeof(untypedPeers); i++){
+  for(int i; i< (sizeof(untypedPeers)/sizeof(untypedPeers[0])); i++){
     if(*mac_addr == *untypedPeers[i].peer_addr){
         return i;
       }
   }
 }
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
-  for(int i; i < sizeof(slaveTypes); i++){
+  for(int i; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
     if(type == slaveTypes[i]){
       return espInfo[i];
     }
   }
 }
+
+int getIndexInespInfo(SlaveTypes type){
+  for(int i; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
+    if(type == slaveTypes[i]){
+      return i;
+    }
+  }
+}
+
 SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
   for(int i; i< sizeof(slaveTypes); i++){
     if(*mac_addr == *espInfo[i].peer_addr){
@@ -111,7 +123,7 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
       }
   }
 }
-boolean doesntContainMac(uint8_t addr[]){
+bool doesntContainMac(uint8_t addr[]){
   for(int i = 0; i < slaveTypesNumber; i++){
     printAddress(espInfo[i].peer_addr );Serial.print("    "); printAddress(addr); Serial.println();
     if(checkIfTwoAddressesAreSame(addr, espInfo[i].peer_addr)){
@@ -125,7 +137,7 @@ boolean doesntContainMac(uint8_t addr[]){
 boolean addNewSlaveToArray(int index, uint8_t type){
   Serial.print("Index is untyped: "); Serial.println(index);
   for(int i = 0; i < slaveTypesNumber; i++){
-    if(slaveTypes[i] == 0){
+    if(slaveTypes[i] == EMPTY){
       switch(type){
         case 1:
           slaveTypes[i] = SECURITY;
@@ -421,11 +433,10 @@ bool attempToPair() {
     delay(100);
   }
 }
-// called after pairing with new slave and in case of failiures
-// if
+
 void sendDataToGetDeviceInfo(int index){
   Serial.println("Sending data to get info");
-  uint8_t data = 193;
+  uint8_t data = 190;
   esp_err_t result = esp_now_send(untypedPeers[index].peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("Send Status: ");
   if (result == ESP_OK) {
@@ -465,15 +476,9 @@ void deletePeer(esp_now_peer_info_t toDelete) {
 }
 
 
-uint8_t pos = 0;
 // send data
 // will have enum in argument will affect what data is send and to whom
 void sendData(SlaveTypes type) {
-  uint8_t test = 1648;
-  pos++;
-  //const uint8_t *peer_addr = .peer_addr;
-  // SECURITY,WATER,WHEELS,HEATING,POWER
-  Serial.println();
   uint8_t dataToBeSent;
   switch(type){
     case SECURITY:{
@@ -536,8 +541,8 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 
-  bool wasNewUnitAdded = false;
   // check if it wont make trouble bool messageWasDiscarded
+  bool wasUnitAdded;
   for(int i = 0; i < 20; i++){
     printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr);
     if(*untypedPeers[i].peer_addr == *mac_addr){ // does it really checks
@@ -545,30 +550,44 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         delay(10);
         addNewSlaveToArray(i, *data-100);
         untypedPeers[i] = emptyInfo;
-        wasNewUnitAdded = true;
+        wasUnitAdded = true;
       }else{ // we expect right input on first try
         deletePeer(untypedPeers[i]);
         untypedPeers[1] = emptyInfo;
       }
     }
-    if(!wasNewUnitAdded){
+    // millisOfLastDataRecv
+    if(!wasUnitAdded){
+      bool validMessage = true;
       switch(getSlaveTypeForMAC(mac_addr)){
         case SECURITY:
           heating.updateYourData(data);
+          heating.updateLastTimeRecived();
           break;
         case WATER:
           water.updateYourData(data);
+          heating.updateLastTimeRecived();
           break;
         case WHEELS:
           wheels.updateYourData(data);
+          heating.updateLastTimeRecived();
           break;
         case HEATING:
           heating.updateYourData(data);
+          heating.updateLastTimeRecived();
           break;
         case POWER:
           power.updateYourData(data);
+          heating.updateLastTimeRecived();
           break;
-      }
+        default:
+          validMessage = false;
+          break;
+        }
+        if(validMessage){
+          // doesnt matter if millis doesnt correspond it wont make a diffrence;
+          millisOfLastDataRecv = millis();  
+        }
     }
 
   }
@@ -579,6 +598,41 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println();
 }
 
+void removeUnit(SlaveTypes type){
+ deletePeer(getEspInfoForType(type));
+ int index = getIndexInespInfo(type);
+ slaveTypes[index] = EMPTY;
+ espInfo[index] = emptyInfo;
+}
+
+void removeUnactiveUnits(){
+  // checks if millis was reseted
+  // if thats case all lastTimeRecived will be set to new value
+  if(millis() < millisOfLastDataRecv){
+      millisOfLastDataRecv = millis();
+      security.updateLastTimeRecived();
+      water.updateLastTimeRecived();
+      wheels.updateLastTimeRecived();
+      heating.updateLastTimeRecived();
+      power.updateLastTimeRecived(); 
+  }else{
+    if(millis() - security.getLastTimeRecived() > 240000){
+      removeUnit(SECURITY);
+    }
+    if(millis() - water.getLastTimeRecived() > 240000){
+      removeUnit(WATER);
+    }
+    if(millis() - wheels.getLastTimeRecived() > 240000){
+      removeUnit(WHEELS);
+    }
+    if(millis() - heating.getLastTimeRecived() > 240000){
+      removeUnit(HEATING);
+    }
+    if(millis() - power.getLastTimeRecived() > 240000){
+      removeUnit(POWER);
+    }
+  }
+}
 void setup(){
   Serial.begin(115200);
   WiFi.onEvent(WiFiEvent);
@@ -602,6 +656,9 @@ void setup(){
     for(int j = 0; i <6; i++){
         untypedPeers[i].peer_addr[j] = emptyInfo.peer_addr[j];
       }
+  }
+  for(int i; i < slaveTypesNumber; i++){
+    slaveTypes[i] = EMPTY;
   }
 
   server.on("/", handleRoot);
@@ -631,6 +688,7 @@ void setup(){
 }
 int interationCounter;
 // check if mac exist -> if not no action
+// check lastTimeRecived
 void loop(){
   //delay(1000);
   // TODO: update only some iterations
@@ -666,4 +724,5 @@ void loop(){
   }else {
     // No slave found to process
   }
+  removeUnactiveUnits();
 }

@@ -11,9 +11,9 @@ using namespace std;
 
 class UnitAbstract {
   public:
+   
     // cant create final Data data due to unknown type of data in structure
-    struct Data;
-      
+
     // Data wchich will forward CentralUnit form Nextion display
     // struct NextionConfiguration;
       
@@ -29,12 +29,22 @@ class UnitAbstract {
     void setEstablishedConnection(bool state){
       isEstablishedConnectionToUnit = state;
     }
-  private:
-    bool isEstablishedConnectionToUnit;
+    long getLastTimeRecived(){
+      return lastTimeRecived;  
+    };
+    long updateLastTimeRecived(){
+      lastTimeRecived = millis();  
+    };
+  protected:
     void startEndNextionCommand(){
       Serial.write(0xff);
       Serial.write(0xff);
       Serial.write(0xff);
     }
+  private:
+    struct Data;
+    long lastTimeRecived;
+    bool isEstablishedConnectionToUnit;
+
 };
 #endif UNITABSTRACT_H
