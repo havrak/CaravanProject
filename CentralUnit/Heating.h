@@ -1,5 +1,7 @@
 // Class that takes care of floor heating in caravan.
 // TODO: set goal temperature from mikrotik.
+// Stores average of temp from class temperatures, which is needed for checking if destined temperature was reached by heating
+
 
 #ifndef HEATING_H
 #define HEATING_H
@@ -21,9 +23,7 @@ class Heating : public UnitAbstract{
     Heating(){
       
     }
-    void updateYourData(){
-      
-    }
+
     void updateDataOnNextion(){
       String command;
       if(data.isHeatingOn){
@@ -51,11 +51,11 @@ class Heating : public UnitAbstract{
       };
       // calc average of floors temp
       startEndNextionCommand(); 
-      double sum;
-      for(int i; i < 6; i++){
+      float sum;
+      for(int i; i < (sizeof(data.temperaturesFloor)/sizeof(data.temperaturesFloor[0])); i++){
         sum+= data.temperaturesFloor[i];
       }
-      sum = sum/6;
+      sum = sum/(sizeof(data.temperaturesFloor)/sizeof(data.temperaturesFloor[0]));
       
       command= "textFloorTemp.txt="+String(sum)+"°C";
       Serial.print(command);

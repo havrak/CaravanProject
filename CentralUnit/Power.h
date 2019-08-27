@@ -21,7 +21,7 @@ class Power : public UnitAbstract{
     Power(){
       
     }
-    void updateYourData(){
+    void updateDataOnNextion(){
       String command;
       // green plug, charging battery icon (even when charged)
       if(data.connectionToPowerOutlet){
@@ -53,9 +53,6 @@ class Power : public UnitAbstract{
       command= "textDrawn.pic="+String(data.currentDrawn)+"A";
       Serial.print(command);
       startEndNextionCommand();
-    }
-    void updateDataOnNextion(){
-      
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works

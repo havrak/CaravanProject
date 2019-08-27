@@ -1,4 +1,6 @@
 // abstarct definition of sensor unit
+// new Configuration will from Nextion will be recived trought seters, not whole function
+
 
 #ifndef UNITABSTRACT_H
 #define UNITABSTRACT_H

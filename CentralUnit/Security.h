@@ -15,7 +15,7 @@ class Security : public UnitAbstract{
       byte numberOfSatellites;
       float latitude;
       float longitude;
-      double accuraccy;
+      float accuraccy;
      
       
     };
@@ -24,12 +24,40 @@ class Security : public UnitAbstract{
     Security(){
       
     }
-    void updateYourData(){
-      
-    }
+
     void updateDataOnNextion(){
-      
+      String command;
+      if(data.state){
+        startEndNextionCommand(); 
+        command= "textGPSState.txt=Zapnuto";
+        Serial.print(command);
+        startEndNextionCommand(); 
+        command= "imgGPSState.pic=4";
+        Serial.print(command);
+        startEndNextionCommand();
+        command= "textNOS.txt="+String(data.numberOfSatellites);
+        Serial.print(command);
+        startEndNextionCommand();
+        command= "textAccuracy.txt="+String(data.accuraccy);
+        Serial.print(command);
+        startEndNextionCommand();
+      }else{
+        startEndNextionCommand(); 
+        command= "textGPSState.txt=Vypnuto";
+        Serial.print(command);
+        startEndNextionCommand(); 
+        command= "imgGPSState.pic=10";
+        Serial.print(command);
+        startEndNextionCommand();
+        command= "textNOS.txt=0";
+        Serial.print(command);
+        startEndNextionCommand();
+        command= "textAccuracy.txt=0";
+        Serial.print(command);
+        startEndNextionCommand();    
+      }  
     }
+    
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
     void updateYourData(const uint8_t *newData){

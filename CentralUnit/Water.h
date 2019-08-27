@@ -19,9 +19,7 @@ class Water : public UnitAbstract{
     Water(){
       
     }
-    void updateYourData(){
-      
-    }
+    
     void updateDataOnNextion(){
       String command;
       if(data.connectionToWaterSource){
