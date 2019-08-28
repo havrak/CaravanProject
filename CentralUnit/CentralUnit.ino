@@ -108,7 +108,8 @@ esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
   }
 }
 
-int getIndexInespInfo(SlaveTypes type){
+// returns index in SlaveTypes for given type, used in case we want to remove it
+int getIndexInSlaveTypes(SlaveTypes type){
   for(int i; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
     if(type == slaveTypes[i]){
       return i;
@@ -116,6 +117,7 @@ int getIndexInespInfo(SlaveTypes type){
   }
 }
 
+// returns SlaveTypes that corresponds with mac_addr in argument (comparing in espInfo)
 SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
   for(int i; i< sizeof(slaveTypes); i++){
     if(*mac_addr == *espInfo[i].peer_addr){
@@ -123,17 +125,19 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
       }
   }
 }
+
+// checks if we had already registred MAC in espInfo
 bool doesntContainMac(uint8_t addr[]){
   for(int i = 0; i < slaveTypesNumber; i++){
-    printAddress(espInfo[i].peer_addr );Serial.print("    "); printAddress(addr); Serial.println();
     if(checkIfTwoAddressesAreSame(addr, espInfo[i].peer_addr)){
-        Serial.println("\t\tMac address is already stored");
+        Serial.println("Mac address is already stored");
         return false;
     }
   }
   return true;
 }
 
+// adds new entry into slaveTypes and espInfo, used after unit send its type
 boolean addNewSlaveToArray(int index, uint8_t type){
   Serial.print("Index is untyped: "); Serial.println(index);
   for(int i = 0; i < slaveTypesNumber; i++){
@@ -143,31 +147,41 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           slaveTypes[i] = SECURITY;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith)); // copies data to array
           Serial.println("Added SECURITY ESP32");
+          security.setEstablishedConnection(true);
           i = slaveTypesNumber; // just exit for loop
+          untypedPeers[i] = emptyInfo;
           break;
         case 2:
           slaveTypes[i] = WATER;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
           Serial.println("Added WATER ESP32");
+          water.setEstablishedConnection(true);
           i = slaveTypesNumber;
+          untypedPeers[i] = emptyInfo;
           break;
         case 3:
           slaveTypes[i] = WHEELS;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
           Serial.println("Added WHEELS ESP32");
+          wheels.setEstablishedConnection(true);
           i = slaveTypesNumber;
+          untypedPeers[i] = emptyInfo;
           break;
         case 4:
           slaveTypes[i] = HEATING;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
           Serial.println("Added HEATING ESP32");
+          heating.setEstablishedConnection(true);
           i = slaveTypesNumber;
+          untypedPeers[i] = emptyInfo;
           break;
         case 5:
           slaveTypes[i] = POWER;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
           Serial.println("Added POWER ESP32");
+          power.setEstablishedConnection(true);
           i = slaveTypesNumber;
+          untypedPeers[i] = emptyInfo;
           break;
       }
     }
@@ -175,6 +189,7 @@ boolean addNewSlaveToArray(int index, uint8_t type){
   printRouteTable();
 }
 
+// prints content of slaveTypes and espInfo
 void printRouteTable(){
   Serial.println();
   for(int i=0; i < slaveTypesNumber; i++){
@@ -186,6 +201,7 @@ void printRouteTable(){
   Serial.println();
 }
 
+// prints given mac address 
 void printAddress(uint8_t addr[]){
   for (int i = 0; i < 6; ++i ) {
     Serial.print((uint8_t) addr[i], HEX);
@@ -385,7 +401,7 @@ bool attempToPair() {
 
 
       // can add only once, address is paired
-      for(int i = 0; i < sizeof(untypedPeers); i++){
+      for(int i = 0; i < (sizeof(untypedPeers)/ sizeof(untypedPeers[0])); i++){
         printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); printAddress(emptyInfo.peer_addr);
         if(checkIfTwoAddressesAreSame(untypedPeers[i].peer_addr, emptyInfo.peer_addr)){ // will this work???
           Serial.println("Found punctuationEmpty");
@@ -468,7 +484,6 @@ void deletePeer(esp_now_peer_info_t toDelete) {
     Serial.println("Not sure what happened");
   }
 }
-
 
 // send data to unit specified in argument
 void sendData(SlaveTypes type) {
@@ -594,7 +609,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
 void removeUnit(SlaveTypes type){
  deletePeer(getEspInfoForType(type));
- int index = getIndexInespInfo(type);
+ int index = getIndexInSlaveTypes(type);
  slaveTypes[index] = EMPTY;
  espInfo[index] = emptyInfo;
 }
@@ -610,23 +625,24 @@ void removeUnactiveUnits(){
       heating.updateLastTimeRecived();
       power.updateLastTimeRecived(); 
   }else{
-    if(millis() - security.getLastTimeRecived() > 240000){
+     // delets only if connectionWasEstablished (since lastTimeRecived can be set, thanks to if statem just above, without recivining any data)
+    if(millis() - security.getLastTimeRecived() > 240000 && security.getEstablishedConnection()){
       removeUnit(SECURITY);
       security.setEstablishedConnection(false);
     }
-    if(millis() - water.getLastTimeRecived() > 240000){
+    if(millis() - water.getLastTimeRecived() > 240000 && water.getEstablishedConnection()){
       removeUnit(WATER);
       water.setEstablishedConnection(false);
     }
-    if(millis() - wheels.getLastTimeRecived() > 240000){
+    if(millis() - wheels.getLastTimeRecived() > 240000 && wheels.getEstablishedConnection()){
       removeUnit(WHEELS);
       wheels.setEstablishedConnection(false);
     }
-    if(millis() - heating.getLastTimeRecived() > 240000){
+    if(millis() - heating.getLastTimeRecived() > 240000 && heating.getEstablishedConnection()){
       removeUnit(HEATING);
       heating.setEstablishedConnection(false);
     }
-    if(millis() - power.getLastTimeRecived() > 240000){
+    if(millis() - power.getLastTimeRecived() > 240000 && power.getEstablishedConnection()){
       removeUnit(POWER);
       power.setEstablishedConnection(false);
     }

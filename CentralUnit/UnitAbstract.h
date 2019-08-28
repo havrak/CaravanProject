@@ -30,6 +30,11 @@ class UnitAbstract {
     void setEstablishedConnection(bool state){
       isEstablishedConnectionToUnit = state;
     }
+
+    bool getEstablishedConnection(){
+      return isEstablishedConnectionToUnit;
+    }
+    
     long getLastTimeRecived(){
       return lastTimeRecived;  
     };
