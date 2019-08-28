@@ -76,11 +76,7 @@ class Water : public UnitAbstract{
       return data.temperature;
     }
     
-    void setEstablishedConnection(bool state){
-      isEstablishedConnectionToUnit = state;
-    }
   private:
-    long lastTimeRecived;
     struct Data{
       bool connectionToWaterSource;
       byte validityOfData;
@@ -88,7 +84,6 @@ class Water : public UnitAbstract{
       float temperature;
     };
     Data data;
-    bool isEstablishedConnectionToUnit;
    
 };
 #endif WATER_H

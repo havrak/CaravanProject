@@ -29,15 +29,10 @@ class Wheels : public UnitAbstract{
       return *bs;
     }
     
-    void setEstablishedConnection(bool state){
-      isEstablishedConnectionToUnit = state;
-    }
   private:
     struct Data{     
     };
     Data data;
-    long lastTimeRecived;
-    bool isEstablishedConnectionToUnit;
 
 };
 #endif WHEELS_H

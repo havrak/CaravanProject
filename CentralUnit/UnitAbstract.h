@@ -17,15 +17,16 @@ class UnitAbstract {
     // Data wchich will forward CentralUnit form Nextion display
     // struct NextionConfiguration;
       
-    // Object will send its data to olimex 
+    // Object will send its data to Nextion (sets up text fields, changes icons, etc.)
     virtual void updateDataOnNextion() = 0;
-    // Object will recive new data from main that origins from sensor unit
-      
+    
+    // Object will recive new configuration from main that origins from sensor unit  
     virtual void updateYourData(const uint8_t *newData) = 0;
-    // Object will convert scruct to uint8_t, body cannot be specified here due to unkown size at compiling
+    
+    // Object will convert scruct to uint8_t, body cannot be specified here due to unkown size of data struct at compiling
     virtual uint8_t getDataToBeSend() = 0;
 
-    // unactive sensors will be deleted
+    // we keep track if connection is established since all instances of classes are created at start
     void setEstablishedConnection(bool state){
       isEstablishedConnectionToUnit = state;
     }

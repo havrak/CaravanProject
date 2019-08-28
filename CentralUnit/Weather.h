@@ -34,7 +34,7 @@ class Weather{
       lat = newLat;
       lon = newLon;
     }
-    // also will change configuration on mikrotik trought telnet
+    
     void updateDataOnNextion(int hours){
       String command;
       startEndNextionCommand();

@@ -327,17 +327,11 @@ void ScanForSlave() {
           Serial.println("Moving to next one");
         }
       }
-      noOfAttempts = 0;
     }
   }
-  // check is slaves were found + print which
-  // Serial.println("No Slave Found, trying again.");
-
   // clean up ram
   WiFi.scanDelete();
 }
-
-
 
 boolean checkIfTwoAddressesAreSame(uint8_t addr1[], uint8_t addr2[]){
   if(sizeof(addr1) != sizeof(addr2)){
@@ -476,8 +470,7 @@ void deletePeer(esp_now_peer_info_t toDelete) {
 }
 
 
-// send data
-// will have enum in argument will affect what data is send and to whom
+// send data to unit specified in argument
 void sendData(SlaveTypes type) {
   uint8_t dataToBeSent;
   switch(type){
@@ -522,12 +515,13 @@ void sendData(SlaveTypes type) {
   }
 }
 
-
 // callback when data is sent from Master to Slave
 void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 20){ // try until data is send successfully
     noOfAttempts++;
     sendDataToGetDeviceInfo(getIndexOfUntyped(mac_addr));
+  }else if(status == ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr ){
+    noOfAttempts = 0;
   }
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -618,18 +612,23 @@ void removeUnactiveUnits(){
   }else{
     if(millis() - security.getLastTimeRecived() > 240000){
       removeUnit(SECURITY);
+      security.setEstablishedConnection(false);
     }
     if(millis() - water.getLastTimeRecived() > 240000){
       removeUnit(WATER);
+      water.setEstablishedConnection(false);
     }
     if(millis() - wheels.getLastTimeRecived() > 240000){
       removeUnit(WHEELS);
+      wheels.setEstablishedConnection(false);
     }
     if(millis() - heating.getLastTimeRecived() > 240000){
       removeUnit(HEATING);
+      heating.setEstablishedConnection(false);
     }
     if(millis() - power.getLastTimeRecived() > 240000){
       removeUnit(POWER);
+      power.setEstablishedConnection(false);
     }
   }
 }

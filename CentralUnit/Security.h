@@ -77,9 +77,6 @@ class Security : public UnitAbstract{
     float getLongitude(){
       return data.longitude;  
     }
-    void setEstablishedConnection(bool state){
-      isEstablishedConnectionToUnit = state;
-    }
   private:
     struct Data{
       bool state;
@@ -88,8 +85,6 @@ class Security : public UnitAbstract{
       float longitude;
       float accuraccy;
     };
-    long lastTimeRecived;
     Data data;
-    bool isEstablishedConnectionToUnit;
 };
 #endif SECURITY_H

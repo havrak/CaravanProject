@@ -67,9 +67,6 @@ class Power : public UnitAbstract{
     double getCurrentDrawn(){
       return data.currentDrawn;
     }
-    void setEstablishedConnection(bool state){
-      isEstablishedConnectionToUnit = state;
-    }
 
   private:
     struct Data{
@@ -80,7 +77,5 @@ class Power : public UnitAbstract{
      
     };
     Data data;
-    long lastTimeRecived;
-    bool isEstablishedConnectionToUnit;
 };
 #endif POWER_H

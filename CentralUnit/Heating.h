@@ -76,10 +76,6 @@ class Heating : public UnitAbstract{
     float* getTemperaturesFloor(){
       return data.temperaturesFloor;  
     }
-    
-    void setEstablishedConnection(bool state){
-      isEstablishedConnectionToUnit = state;
-    }
   private:
     struct Data{
       // dont know exact number of heat sensors
@@ -89,8 +85,6 @@ class Heating : public UnitAbstract{
       float amperesMax;
      
     };
-    long lastTimeRecived;
     Data data;
-    bool isEstablishedConnectionToUnit;
 };
 #endif HEATING_H
