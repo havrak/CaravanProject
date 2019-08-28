@@ -10,17 +10,7 @@
 class Security : public UnitAbstract{
   public:
     
-    struct Data{
-      bool state;
-      byte numberOfSatellites;
-      float latitude;
-      float longitude;
-      float accuraccy;
-     
-      
-    };
 
-    Data data;
     Security(){
       
     }
@@ -91,11 +81,15 @@ class Security : public UnitAbstract{
       isEstablishedConnectionToUnit = state;
     }
   private:
+    struct Data{
+      bool state;
+      byte numberOfSatellites;
+      float latitude;
+      float longitude;
+      float accuraccy;
+    };
+    long lastTimeRecived;
+    Data data;
     bool isEstablishedConnectionToUnit;
-    void startEndNextionCommand(){
-      Serial.write(0xff);
-      Serial.write(0xff);
-      Serial.write(0xff);
-    }
 };
 #endif SECURITY_H

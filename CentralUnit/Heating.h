@@ -10,16 +10,8 @@
 class Heating : public UnitAbstract{
   public:
     
-    struct Data{
-      // dont know exact number of heat sensors
-      // can be in seperate variables
-      float temperaturesFloor[6];
-      bool isHeatingOn;
-      float amperesMax;
-     
-    };
 
-    Data data;
+
     Heating(){
       
     }
@@ -89,11 +81,16 @@ class Heating : public UnitAbstract{
       isEstablishedConnectionToUnit = state;
     }
   private:
+    struct Data{
+      // dont know exact number of heat sensors
+      // can be in seperate variables
+      float temperaturesFloor[6];
+      bool isHeatingOn;
+      float amperesMax;
+     
+    };
+    long lastTimeRecived;
+    Data data;
     bool isEstablishedConnectionToUnit;
-    void startEndNextionCommand(){
-      Serial.write(0xff);
-      Serial.write(0xff);
-      Serial.write(0xff);
-    }
 };
 #endif HEATING_H

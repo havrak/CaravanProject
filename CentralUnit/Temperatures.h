@@ -16,6 +16,7 @@ class Temperatures{
       
     }
     void updateDataOnNextion(){
+      String command;
       startEndNextionCommand();
       command= "textAirTemp.txt="+String(average)+"°C";
       Serial.print(command);
@@ -24,10 +25,10 @@ class Temperatures{
     // will ask sensors directly not trought CentralUnit file, wil
     void updateYourData(){
       average = 0;
-      for(int i; i < (sizeof(temperatures)/sizeof(tempeatures[0])); i++){
-        average+= data.temperatures[i];
+      for(int i; i < (sizeof(temperatures)/sizeof(temperatures[0])); i++){
+        average+= temperatures[i];
       }
-      average = average/(sizeof(temperatures)/sizeof(tempeatures[0]));
+      average = average/(sizeof(temperatures)/sizeof(temperatures[0]));
       
     };
 

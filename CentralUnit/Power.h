@@ -8,16 +8,7 @@
 
 class Power : public UnitAbstract{
   public:
-    
-    struct Data{
-      bool connectionToPowerOutlet;
-      double batteryState;
-      double currentDrawn;
-      bool charging;
-     
-    };
 
-    Data data;
     Power(){
       
     }
@@ -79,12 +70,17 @@ class Power : public UnitAbstract{
     void setEstablishedConnection(bool state){
       isEstablishedConnectionToUnit = state;
     }
+
   private:
+    struct Data{
+      bool connectionToPowerOutlet;
+      double batteryState;
+      double currentDrawn;
+      bool charging;
+     
+    };
+    Data data;
+    long lastTimeRecived;
     bool isEstablishedConnectionToUnit;
-    void startEndNextionCommand(){
-      Serial.write(0xff);
-      Serial.write(0xff);
-      Serial.write(0xff);
-    }
 };
 #endif POWER_H

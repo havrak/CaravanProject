@@ -8,14 +8,6 @@
 
 class Water : public UnitAbstract{
   public:
-    
-    struct Data{
-      bool connectionToWaterSource;
-      float litersRemaining;
-      float temperature;
-    };
-    
-    Data data;
     Water(){
       
     }
@@ -39,17 +31,22 @@ class Water : public UnitAbstract{
         Serial.print(command);
         startEndNextionCommand(); 
       };
-      if(data.litersRemaining != 1000){
-        startEndNextionCommand(); 
-        command= "textLiters.txt="+String(data.litersRemaining)+"l";
-        Serial.print(command);
-        startEndNextionCommand(); 
-      }else{
-        startEndNextionCommand(); 
-        command= "textLiters.txt=neznámý";
-        Serial.print(command);
-        startEndNextionCommand(); 
+      startEndNextionCommand(); 
+      switch(data.validityOfData){
+        case 0:   
+          command = "textLiters.txt="+String(data.litersRemaining)+"l";
+          break;
+        case 1: 
+          command = "textLiters.txt="+String(data.litersRemaining)+"l?";
+          break;
+        case 2:
+          command = "textLiters.txt=?EEPROM?";
+          break;
+        case 3:
+          command = "textLiters.txt=?REFILL?";
+          break;
       }
+      Serial.print(command);
       startEndNextionCommand(); 
       command= "textWaterTemp.txt="+String(data.temperature)+"°C";
       Serial.print(command);
@@ -83,12 +80,15 @@ class Water : public UnitAbstract{
       isEstablishedConnectionToUnit = state;
     }
   private:
+    long lastTimeRecived;
+    struct Data{
+      bool connectionToWaterSource;
+      byte validityOfData;
+      float litersRemaining;
+      float temperature;
+    };
+    Data data;
     bool isEstablishedConnectionToUnit;
-    
-    void startEndNextionCommand(){
-      Serial.write(0xff);
-      Serial.write(0xff);
-      Serial.write(0xff);
-    }
+   
 };
 #endif WATER_H

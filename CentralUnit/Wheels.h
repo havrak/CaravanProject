@@ -8,11 +8,8 @@
 class Wheels : public UnitAbstract{
   public:
     // edit later
-    struct Data{     
-    };
 
-    Data data;
-    
+
     Wheels(){
       
     }
@@ -36,11 +33,11 @@ class Wheels : public UnitAbstract{
       isEstablishedConnectionToUnit = state;
     }
   private:
+    struct Data{     
+    };
+    Data data;
+    long lastTimeRecived;
     bool isEstablishedConnectionToUnit;
-    void startEndNextionCommand(){
-      Serial.write(0xff);
-      Serial.write(0xff);
-      Serial.write(0xff);
-    }
+
 };
 #endif WHEELS_H
