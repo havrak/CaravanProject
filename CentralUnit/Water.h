@@ -16,7 +16,7 @@ class Water : public UnitAbstract{
       String command;
       if(data.connectionToWaterSource){
         startEndNextionCommand(); 
-        command= "textWater.txt=připojena";
+        command= "textWater.txt=\"připojena\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgWater.pic=14";
@@ -24,7 +24,7 @@ class Water : public UnitAbstract{
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textWater.txt=odpojena";
+        command= "textWater.txt=\"odpojena\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgWater.pic=13";
@@ -54,9 +54,14 @@ class Water : public UnitAbstract{
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
-    void updateYourData(const uint8_t *newData){
+    bool updateYourData(const uint8_t *newData){
       // newData << 32
-      memcpy(&data, newData, sizeof(data));
+      String("Recived new data");
+      if(sizeof(newData) != sizeof(data)){
+        memcpy(&data, newData, sizeof(data));
+        return true;
+      }
+      return false;
     }
     
     uint8_t getDataToBeSend(){

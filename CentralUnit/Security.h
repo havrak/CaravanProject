@@ -50,8 +50,12 @@ class Security : public UnitAbstract{
     
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
-    void updateYourData(const uint8_t *newData){
-      memcpy(&data, newData, sizeof(data));
+    bool updateYourData(const uint8_t *newData){
+      if(sizeof(newData) != sizeof(data)){
+        memcpy(&data, newData, sizeof(data));
+        return true;
+      }
+      return false;
     };
     
     uint8_t getDataToBeSend(){

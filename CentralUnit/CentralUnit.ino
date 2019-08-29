@@ -2,14 +2,15 @@
     Code for central unit, runs on OLIMEX Gateway
 */
 
-#include <ETH.h>
-#include <esp_now.h>
-#include <WiFi.h>
-#include <WebServer.h>
-#include <EEPROM.h>
-#include <WiFiUdp.h>
-#include <NTPClient.h>
-#include <Nextion.h>
+#include <ETH.h>        // for ethernet to work
+#include <esp_now.h>    // for enabling ESP NOW wich is used to communicate with units
+#include <WiFi.h>       // for running ethernet interface
+#include <WebServer.h>  // for running webserver on Olimex
+#include <EEPROM.h>     // for writing data into EEPROM (probably wont be used here)
+#include <Time.h>       // for timekeeping
+#include <WiFiUdp.h>    // for WifiUdp - as argument in timeCliet
+#include <NTPClient.h>  // for syncing time via NTP
+#include <Nextion.h>    // for getting data from nextion display
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -19,13 +20,8 @@
 #include "Connection.h"
 #include "Temperatures.h"
 #include "Weather.h"
-
-#define CHANNEL 1
-#define PRINTSCANRESULTS 0
-#define DELETEBEFOREPAIR 0
-#define EEPROM_SIZE 1
-
-#define stringify( name ) # name
+ 
+#define EEPROM_SIZE 1   // define EEPROM size
 
 WiFiUDP Udp;
 NTPClient timeClient(Udp);
@@ -70,14 +66,7 @@ Connection connection();
 Temperatures temperatures;
 Weather weather(0,0);
 
-// remove after testing
-const char* slaveTypesNames[] = {
-  stringify(SECURITY),
-  stringify(WATER),
-  stringify(WHEELS),
-  stringify(HEATING),
-  stringify(POWER),
-};
+
 
 // millisResetsAfter50Day that would make it impossible (for a while) to remove unactiveChips
 long millisOfLastDataRecv;
@@ -160,7 +149,6 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           Serial.println("Added SECURITY ESP32");
           security.setEstablishedConnection(true);
           i = slaveTypesNumber; // just exit for loop
-          untypedPeers[i] = emptyInfo;
           break;
         case 2:
           slaveTypes[i] = WATER;
@@ -168,7 +156,6 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           Serial.println("Added WATER ESP32");
           water.setEstablishedConnection(true);
           i = slaveTypesNumber;
-          untypedPeers[i] = emptyInfo;
           break;
         case 3:
           slaveTypes[i] = WHEELS;
@@ -176,7 +163,6 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           Serial.println("Added WHEELS ESP32");
           wheels.setEstablishedConnection(true);
           i = slaveTypesNumber;
-          untypedPeers[i] = emptyInfo;
           break;
         case 4:
           slaveTypes[i] = HEATING;
@@ -184,7 +170,6 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           Serial.println("Added HEATING ESP32");
           heating.setEstablishedConnection(true);
           i = slaveTypesNumber;
-          untypedPeers[i] = emptyInfo;
           break;
         case 5:
           slaveTypes[i] = POWER;
@@ -192,24 +177,10 @@ boolean addNewSlaveToArray(int index, uint8_t type){
           Serial.println("Added POWER ESP32");
           power.setEstablishedConnection(true);
           i = slaveTypesNumber;
-          untypedPeers[i] = emptyInfo;
           break;
       }
     }
   } // resets address so we wont in case for ifs in callbacks
-  printRouteTable();
-}
-
-// prints content of slaveTypes and espInfo
-void printRouteTable(){
-  Serial.println();
-  for(int i=0; i < slaveTypesNumber; i++){
-    Serial.print(slaveTypesNames[i]);
-    Serial.print(" : ");
-    printAddress(espInfo[i].peer_addr);
-    Serial.print("   ");
-  }
-  Serial.println();
 }
 
 // prints given mac address 
@@ -343,7 +314,7 @@ void ScanForSlave() {
           for (int ii = 0; ii < 6; ++ii ) {
             peerToBePairedWith.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          peerToBePairedWith.channel = CHANNEL; // pick a channel
+          peerToBePairedWith.channel = 1; // pick a channel
           peerToBePairedWith.encrypt = 0;
           // attempts to pair to found slave
 
@@ -381,7 +352,6 @@ bool attempToPair() {
     delay(10);
     // maybe check is mac is in table
     if(doesntContainMac(peerToBePairedWith.peer_addr)){
-        printRouteTable();
         //Serial.println("Doesn't contain mac");
         sendDataToGetDeviceInfo(getIndexOfUntyped(peerToBePairedWith.peer_addr));
     }
@@ -554,10 +524,15 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
 
+  
+  Serial.println();
+  Serial.print("\t\tLast Packet Recv from: "); Serial.println(macStr);
+  Serial.print("\t\tLast Packet Recv Data: "); Serial.println(*data);
+  Serial.println();
   // check if it wont make trouble bool messageWasDiscarded
-  bool wasUnitAdded;
+  bool wasUnitAdded = false;
   for(int i = 0; i < 20; i++){
-    printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr);
+    //printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr);
     if(*untypedPeers[i].peer_addr == *mac_addr){ // does it really checks
       if((*data-100) > 0 && (*data-100) <= slaveTypesNumber){
         delay(10);
@@ -569,47 +544,47 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         untypedPeers[1] = emptyInfo;
       }
     }
-    // millisOfLastDataRecv
-    if(!wasUnitAdded){
-      bool validMessage = true;
-      switch(getSlaveTypeForMAC(mac_addr)){
-        case SECURITY:
-          heating.updateYourData(data);
-          heating.updateLastTimeRecived();
-          break;
-        case WATER:
-          water.updateYourData(data);
-          heating.updateLastTimeRecived();
-          break;
-        case WHEELS:
-          wheels.updateYourData(data);
-          heating.updateLastTimeRecived();
-          break;
-        case HEATING:
-          heating.updateYourData(data);
-          heating.updateLastTimeRecived();
-          break;
-        case POWER:
-          power.updateYourData(data);
-          heating.updateLastTimeRecived();
-          break;
-        default:
-          validMessage = false;
-          break;
-        }
-        if(validMessage){
-          // doesnt matter if millis doesnt correspond it wont make a diffrence;
-          millisOfLastDataRecv = millis();  
-        }
-    }
-
   }
-
-  Serial.println();
-  Serial.print("\t\tLast Packet Recv from: "); Serial.println(macStr);
-  Serial.print("\t\tLast Packet Recv Data: "); Serial.println(*data);
-  Serial.println();
+    // millisOfLastDataRecv
+  if(!wasUnitAdded){
+    Serial.println("Valid data");
+    bool validMessage = true;
+    switch(getSlaveTypeForMAC(mac_addr)){
+      case SECURITY:
+        validMessage = heating.updateYourData(data);
+        validMessage ? heating.updateLastTimeRecived() : NULL;
+        break;
+      case WATER:
+        Serial.println("adsadsad");
+        validMessage = water.updateYourData(data);
+        validMessage ? heating.updateLastTimeRecived() : NULL;
+        break;
+      case WHEELS:
+        validMessage = wheels.updateYourData(data);
+        validMessage ? heating.updateLastTimeRecived() : NULL;
+        break;
+      case HEATING:
+        validMessage = heating.updateYourData(data);
+        validMessage ? heating.updateLastTimeRecived() : NULL;
+        break;
+      case POWER:
+        validMessage = power.updateYourData(data);
+        validMessage ? heating.updateLastTimeRecived() : NULL;
+        break;
+      default:
+        Serial.print("asa");
+        validMessage = false;
+        break;
+    }
+      if(validMessage){
+        // doesnt matter if millis doesnt correspond it wont make a diffrence;
+        millisOfLastDataRecv = millis();  
+      }else{
+        Serial.print("message was invalid");  
+    }
+  }
 }
+
 
 // remove unit that is fully set up
 void removeUnit(SlaveTypes type){
@@ -658,13 +633,10 @@ void removeUnactiveUnits(){
 void setup(){
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
-  //Serial1.print("baud=115200");
-  //Serial1.write(0xff);  // We always have to send this three lines after each command sent to nextion.
-  //Serial1.write(0xff);
-  //Serial1.write(0xff);
-  
-  //Serial.end();  // End the serial comunication of baud=9600
-  //Serial1.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
+  //Serial2.send("baud=115200");
+  //startEndNextionCommand();
+  //Serial2.end();  // End the serial comunication of baud=9600
+  //Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
 
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
@@ -699,47 +671,64 @@ void setup(){
   timeClient.forceUpdate();
 }
 
-int interationCounter;
+
 
 // check if mac exist -> if not no action
 // check lastTimeRecived
 
-void loop(){
-  //delay(1000);
-  // TODO: update only some iterations
-  
+void updateTime(){
   while(!timeClient.update()) {
    timeClient.setTimeOffset(timeOffset);
    timeClient.forceUpdate();
   }
-  //formattedDate = timeClient.getFormattedDate();
-  Serial.println(formattedDate);
+  // get unix time and sets it into Time.h for timekeeping
+  setTime(timeClient.getEpochTime());
+}
+void startEndNextionCommand(){
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+}
 
-  // Extract date
-  int splitT = formattedDate.indexOf("T");
-  dayStamp = formattedDate.substring(0, splitT);
-  Serial.print("DATE: ");
-  Serial.println(dayStamp);
-  // Exract time
-  timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
-  Serial.print("HOUR: ");
-  Serial.println(timeStamp);
+void displayTime(){
+  String command;
+  // in "" is mode with zeroes
+  startEndNextionCommand();
+  //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
+  command = "textHours.txt=\""+String(hour())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  //command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
+  command = "textAccuracy.txt=\""+String(minute())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  //command = day() < 10 ? "textAccuracy.txt=\"0"+String(day())+"\"" : "textAccuracy.txt=\""+String(day())+"\"";
+  command = "textAccuracy.txt=\""+String(day())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  //command = month() < 10 ? "textAccuracy.txt=\"0"+String(month())+"\"" : "textAccuracy.txt=\""+String(month())+"\"";
+  command = "textAccuracy.txt=\""+String(month())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand(); 
+}
+
+int interationCounter;
+void loop(){
+  //delay(1000);
+  // TODO: update only some iterations
+  //if(interationCounter % 1000 == 0 ){
+  //  updateTime(); 
+  //}
   
-  if (ethConnected) {
-    testClient("duckduckgo.com", 80);
-    server.handleClient();
-  }
-  // In the loop we scan for slave
-  
+  //displayTime();
   ScanForSlave();
-  // If Slave is found, it would be populate in `slave` variable
-  // We will check if `slave` is defined and then we proceed further
-  if (slaveTypes[0]==0) { // check if slave channel is defined
-    uint8_t data = 6;
-    //esp_err_t result = esp_now_send(espInfo[0].peer_addr, &data, sizeof(data));
-    esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
-  }else {
-    // No slave found to process
-  }
+  
+  //if (ethConnected) {
+  //  testClient("duckduckgo.com", 80);
+  //  server.handleClient();
+  //}
+  water.updateDataOnNextion();
+  //sendData(WATER);
   removeUnactiveUnits();
+  interationCounter++;
 }

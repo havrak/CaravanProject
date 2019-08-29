@@ -20,8 +20,9 @@ class UnitAbstract {
     // Object will send its data to Nextion (sets up text fields, changes icons, etc.)
     virtual void updateDataOnNextion() = 0;
     
-    // Object will recive new configuration from main that origins from sensor unit  
-    virtual void updateYourData(const uint8_t *newData) = 0;
+    // Object will recive new configuration from main that origins from sensor unit
+    // return false if data wasn't update (size didm't match, for now that is only case)
+    virtual bool updateYourData(const uint8_t *newData) = 0;
     
     // Object will convert scruct to uint8_t, body cannot be specified here due to unkown size of data struct at compiling
     virtual uint8_t getDataToBeSend() = 0;

@@ -1,37 +1,32 @@
 // NOTE: 
 // Send all data after reciving new configuration
-// 
-
-// Store in EEPROM with theirs respective adresses in parentheses: byte(0) -- will be one if something was written, literRemaiding(1,4), pulseCounter(5,8), releOpen(9)
-//
-
-
-// char data[sizeof(float)];
-// float f = 0.6f;
-// memcpy(data, &f, sizeof f);    // send data
-// float g;
-// memcpy(&g, data, sizeof g);    // receive data
-
+// this call contain some constants you can find those for your specific hardware via WaterTest
 
 #include <esp_now.h>
 #include <WiFi.h>
 #include <EEPROM.h>
 
-#define EEPROM_SIZE 64
+// TODO: check size 
+#define EEPROM_SIZE 80
 #define CHANNEL 1
 
 #define ANALOG_PIN 14 // preasure - connected to analog pin 3
-                       // outside leads to ground and +5V 
+// outside leads to ground and +5V 
+
+const float maxVolumeOfTank = 40.7;
+const float remainderWhenLowSensorHitted = 3;
+const int pulsesPerLiter = 760;
+
 
 esp_now_peer_info_t master;
 bool sendedIMyTypeToCentral = false;
 uint8_t master_addr;
 
-bool releOpen = false;
+bool eepromOn = false;
+bool relayOpen = false;
 bool connectionToWaterSource;
 
-const float maxVolumeOfTank = 40.7;
-const float remainderWhenLowSensorHitted = 3;
+
 
 float litersRemaining;
 float temperature;
@@ -42,9 +37,8 @@ bool bottomTankSensor;
 int pulseCounter;
 byte validityOfData;
 
-// send and recive 
+// send and recive structure, for ease of access it it used only for reciving and sending data, ESP32 has plenty of room to store those data 2 times 
 struct SendRecvDataStruct{
-  bool lowSensor;
   bool connectionToWaterSource;
   // 0 - data is valid, system hit top and counters were reseted, 1 - data could be valid, but was loaded from EEPROM, 2 - EEPROM was empty thus we can't guess state of tank, 3 - tank wasnt filled to its full capacity
   byte validityOfData;
@@ -53,7 +47,7 @@ struct SendRecvDataStruct{
 };
 
 // Init ESP Now with fallback
-void InitESPNow() {
+void initESPNow() {
   WiFi.disconnect();
   if (esp_now_init() == ESP_OK) {
     Serial.println("ESPNow Init Success");
@@ -77,28 +71,21 @@ void configDeviceAP() {
 
 // counting speed is diffrent than what it should be
 // what to set when water is refiling
-void AddPulse() {
+void addPulse() {
   // evry liter / half a leter
-  if(releOpen){
+  if(relayOpen){
     // here when water is refilling
   }else{
     pulseCounter++;
-    litersRemaining -= (pulseCounter/750);
+    litersRemaining -= (pulseCounter/pulsesPerLiter);
   }
   // evry +- liter we want to 
-  if(pulseCounter% 750 == 0){
+  if(pulseCounter % pulsesPerLiter == 0){
     storeDataInEEPROM();
   }
 } 
-// Store in EEPROM with theirs respective adresses in parentheses: byte(0) -- will be one if something was written, literRemaiding(1,4), pulseCounter(5,8), releOpen(9)
-//
 
-
-// char data[sizeof(float)];
-// float f = 0.6f;
-// memcpy(data, &f, sizeof f);    // send data
-// float g;
-// memcpy(&g, data, sizeof g);    // receive data
+// EEPROM data with theirs respective adresses in parentheses: byte(0) -- will be one if something was written, literRemaiding(1,4), pulseCounter(5,8), relayOpen(9)
 void storeDataInEEPROM(){
   if(EEPROM.read(0) == 0){
       EEPROM.write(0,1);
@@ -114,22 +101,29 @@ void storeDataInEEPROM(){
   for (int i = 0; i < (sizeof(temp)/ sizeof(temp[0])); i++){
     EEPROM.write(i+5,temp[i]);
   }
-  /*
-  if(releOpen == true){
-    write(9, 1);
-  }else{
-    write(9, 0);
-  }
-  */
-  EEPROM.write(9,releOpen);
-  
+  EEPROM.write(9,relayOpen);  
 }
 
-void loadDataFormEEPROM(){
-  
+void loadDataFromEEPROM(){
+  if(EEPROM.read(0) == 0){
+    validityOfData = 2;
+  }else{
+    validityOfData = 1;
+    char temp[sizeof(litersRemaining)];
+    for (int i = 0; i < (sizeof(temp)/ sizeof(temp[0])); i++){
+      temp[i] = EEPROM.read(i+1);
+    }
+    memcpy(&litersRemaining , temp, sizeof(temp));
+    temp[sizeof(pulseCounter)];
+    for (int i = 0; i < (sizeof(temp)/ sizeof(temp[0])); i++){
+      temp[i] = EEPROM.read(i+5);
+    }
+    memcpy(&pulseCounter, temp, sizeof(temp));
+    relayOpen = EEPROM.read(9);  
+  }
 }
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && sendedIMyTypeToCentral == false){ // try until data is send successfully
+void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+  if(status != ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral){ // try until data is send successfully
     Serial.println("Sending info failed");
     sendConfirmation();
   }else{
@@ -144,13 +138,18 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void sendData() {
-   // no need to send all data
-
+  Serial.print("Sending data");
   SendRecvDataStruct data;
+  /*
   data.connectionToWaterSource = connectionToWaterSource;
   data.litersRemaining = litersRemaining;
   data.temperature = temperature;
-  
+  data.validityOfData = validityOfData;
+  */
+  data.connectionToWaterSource = true;
+  data.litersRemaining = 23.4;
+  data.temperature = 12.7;
+  data.validityOfData = 0;
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
  
@@ -159,7 +158,7 @@ void sendData() {
   if (result == ESP_OK) {
     Serial.println("Success");
   } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
-    // How did we get so far!!
+    initESPNow();
     Serial.println("ESPNOW not Init.");
   } else if (result == ESP_ERR_ESPNOW_ARG) {
     Serial.println("Invalid Argument");
@@ -169,6 +168,7 @@ void sendData() {
     Serial.println("ESP_ERR_ESPNOW_NO_MEM");
   } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
     Serial.println("Peer not found.");
+    esp_now_add_peer(&master);
   } else {
     Serial.println("Not sure what happened");
   }
@@ -177,7 +177,7 @@ void sendData() {
 // callback when data is recv from Master
 // check if mac_addr matches master, others inpouts ignore
 // also sets up master, in case master asks again than address will be set up again for new master
-void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -185,11 +185,12 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
 
-
+  // add protection
   if (*data == (uint8_t) 190){
+      Serial.print("Got masters addr");
       master.channel = 1;
       master.encrypt = 0;
-      memcpy(master.peer_addr, mac_addr, sizeof(mac_addr)+8); // size if diffrent
+      memcpy(master.peer_addr, mac_addr, sizeof(master.peer_addr)); // size if diffrent
       sendedIMyTypeToCentral = false;
       esp_err_t addStatus = esp_now_add_peer(&master);
       sendConfirmation();
@@ -199,14 +200,17 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   	  // procede
   }
 }
+
+// 
 void sendConfirmation(){
-  Serial.println();
-  uint8_t data = 101;
+  Serial.print("sending confirmation");
+  uint8_t data = 102;
   esp_err_t result = esp_now_send(master.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("Send Status: ");
   if (result == ESP_OK) {
     Serial.println("Success");
   } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
+    initESPNow();
     Serial.println("ESPNOW not Init.");
   } else if (result == ESP_ERR_ESPNOW_ARG) {
     Serial.println("Invalid Argument");
@@ -231,32 +235,26 @@ void setup() {
   // This is the mac address of the Slave in AP Mode
   Serial.print("AP MAC: "); Serial.println(WiFi.softAPmacAddress());
   // Init ESPNow with a fallback logic
-  InitESPNow();
-  esp_now_register_recv_cb(OnDataRecv);
-  esp_now_register_send_cb(OnDataSent);
+  initESPNow();
+  esp_now_register_recv_cb(onDataRecv);
+  esp_now_register_send_cb(onDataSent);
 
   if (!EEPROM.begin(EEPROM_SIZE)){
-    Serial.println("failed to initialise EEPROM");
-    }
-  // 1 or 3
-  if(EEPROM.read(0) == 0){
     validityOfData = 2;
+    Serial.println("failed to initialise EEPROM");
   }else{
-    validityOfData = 1;
-    loadDataFormEEPROM();
+    loadDataFromEEPROM();
   }
-   
-  pinMode(4, OUTPUT);             // rele (LOW vypnuto, HIGH zapnuto
-  pinMode(15, INPUT);             // snímač hladiny Horni, HIGH sepnuto
-  pinMode(13, INPUT);             // snímač hladiny spodní, HIGH sepnuto
-  pinMode(5, INPUT);              // Prutokomer impulsy
-  attachInterrupt(5, AddPulse, FALLING);
+  pinMode(4, OUTPUT);                     // relay (LOW on, HIGH off) - when on water can start flowing to water tank
+  pinMode(15, INPUT);                     // sensor of upper water level, HIGH on - sensor sends one if top sensor was hitted
+  pinMode(13, INPUT);                     // sensor of lower water level, HIGH on
+  pinMode(5, INPUT);                      // flowmeter sends impule 
+  attachInterrupt(5, addPulse, FALLING);  // added interrupt for flow meter impulses
 }
 
+byte count = 0;
 void loop() {
   int val;
-  //maxVolumeOfTank = 40.7
-  // remainderWhenLowSensorHitted
   connectionToWater = (analogRead(ANALOG_PIN) > 250) ? true : false;
   topTankSensor = (digitalRead(13) == HIGH) ? true : false;
   bottomTankSensor = (digitalRead(15) == HIGH) ? true : false;
@@ -264,21 +262,33 @@ void loop() {
   if(connectionToWater && !topTankSensor && temperature > 4){
     // we can refill tank
     digitalWrite(4, LOW);
-    releOpen = true;
+    relayOpen = true;
     // add value for refilling
-  }else if(releOpen && topTankSensor){
+  }else if(relayOpen && topTankSensor){
     // close reffiling of tank
     digitalWrite(4, HIGH);
-    releOpen = false;  
+    relayOpen = false;  
     litersRemaining = maxVolumeOfTank;
     validityOfData = 0;
-  }else if(!connectionToWater && releOpen){
-    // we were refilling but lost connection to water source
-    // we dont known what is current state of tank
+    pulseCounter = 0;
+  }else if(!connectionToWater && relayOpen){
+    // tank had been refilling but water source was disconnected
+    // we have no method guessing how much is in tank (there is no input pulse counter)
+    relayOpen = false;
+    digitalWrite(4, HIGH);
     validityOfData = 4;
   }else if(bottomTankSensor == true){
+    // we can readjust volume of water left in tank
     litersRemaining = remainderWhenLowSensorHitted;
     validityOfData = 0;
   }
-  
+  // give cpu rest
+  delay(500);
+  // sendDataToUnit every half a minute
+  // return to 6
+  if(count % 1 == 0){
+    sendData();
+    count = 0;
+  }
+  count++; 
 }

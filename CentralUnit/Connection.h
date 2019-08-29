@@ -20,18 +20,19 @@ class Connection{
         isTelnetConnectionRunning = true;
       }
     }
-    void updateYourData(){
+    // presses button -> callbacks calls this function -> if it is successfull changes icon on nextion
+    bool changeConnection(){
       if(!isTelnetConnectionRunning){
         if (client.connect(server, 23)) {
-          isTelnetConnectionRunning = true;
+            isTelnetConnectionRunning = true;
+            return false;
           }
       } 
-      // updates only uplink and and signal strenght
       if(isTelnetConnectionRunning){
-        // checks if isConnectionLTE corresponds, if not change configuration imediately
-        // here requests will be done  
+        if(didIAuthorized){
+          didIAuthorized = true;
+        }
       }
-
     }
     // also will change configuration on mikrotik trought telnet
     void updateDataOnNextion(){
@@ -57,6 +58,10 @@ class Connection{
       
     }
 
+    void reset(){
+      isTelnetConnectionRunning = false;
+      didIAuthorized = false;
+    }
     bool getIsConnectionLTE(){
       return isConnectionLTE;
     }
@@ -74,9 +79,10 @@ class Connection{
     private: 
       IPAddress mikrotikIP;
       WiFiClient client;
-      // for some reason IP cannot be created here and needs to be passed from main
       IPAddress server;
+      
       bool isTelnetConnectionRunning = false;
+      bool didIAuthorized = false;
       
       void startEndNextionCommand(){
         Serial.write(0xff);
