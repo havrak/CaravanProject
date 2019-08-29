@@ -19,31 +19,31 @@ class Security : public UnitAbstract{
       String command;
       if(data.state){
         startEndNextionCommand(); 
-        command= "textGPSState.txt=Zapnuto";
-        Serial.print(command);
+        command= "textGPSState.txt=\"Zapnuto\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgGPSState.pic=4";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
-        command= "textNOS.txt="+String(data.numberOfSatellites);
-        Serial.print(command);
+        command= "textNOS.txt=\""+String(data.numberOfSatellites)+"ks\"";
+        Serial2.print(command);
         startEndNextionCommand();
-        command= "textAccuracy.txt="+String(data.accuraccy);
-        Serial.print(command);
+        command= "textAccuracy.txt=\""+String(data.accuraccy)+"\"";
+        Serial2.print(command);
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textGPSState.txt=Vypnuto";
-        Serial.print(command);
+        command= "textGPSState.txt=\"Vypnuto\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgGPSState.pic=10";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
         command= "textNOS.txt=0";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
-        command= "textAccuracy.txt=0";
-        Serial.print(command);
+        command= "textAccuracy.txt=\"0\"";
+        Serial2.print(command);
         startEndNextionCommand();    
       }  
     }

@@ -17,32 +17,32 @@ class Power : public UnitAbstract{
       // green plug, charging battery icon (even when charged)
       if(data.connectionToPowerOutlet){
         startEndNextionCommand(); 
-        command= "textPower.txt=Připojena";
-        Serial.print(command);
+        command= "textPower.txt=\"Připojena\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgPower.pic=9";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
         command= "imgBattery.pic=6";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textPower.txt=Opojena";
-        Serial.print(command);
+        command= "textPower.txt=\"Opojena\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgPower.pic=8";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
         command= "imgBattery.pic=5";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
-      command= "textBattery.pic="+String(data.batteryState)+"%";
-      Serial.print(command);
+      command= "textBattery.txt=\""+String(data.batteryState)+"%\"";
+      Serial2.print(command);
       startEndNextionCommand();
-      command= "textDrawn.pic="+String(data.currentDrawn)+"A";
-      Serial.print(command);
+      command= "textDrawn.txt=\""+String(data.currentDrawn)+"A\"";
+      Serial2.print(command);
       startEndNextionCommand();
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit

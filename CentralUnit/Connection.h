@@ -15,7 +15,7 @@ class Connection{
     double SignalStrenght;
     
     Connection(){
-      mikrotikIP = IPAddress(1,1,1,1);
+      mikrotikIP = IPAddress(10,18,11,240);
       if (client.connect(server, 23)) {
         isTelnetConnectionRunning = true;
       }
@@ -39,19 +39,19 @@ class Connection{
       if(isTelnetConnectionRunning){
         startEndNextionCommand(); 
         if(isConnectionLTE){
-          command= "textConnection.txt=LTE";
+          command= "textConnection.txt=\"LTE\"";
         }else{
-          command= "textConnection.txt=AP";
+          command= "textConnection.txt=\"AP\"";
         }
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
-        command= "textUplink.txt="+String(Uplink)+"Mb/s";
-        Serial.print(command);
+        command= "textUplink.txt=\""+String(Uplink)+"Mb/s\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
       }else{
         startEndNextionCommand(); 
-        command = "textConnection.txt=No connection";
-        Serial.print(command);
+        command = "textConnection.txt=\"No connection\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
       };
       

@@ -42,6 +42,7 @@ const int slaveTypesNumber = 5;
 enum SlaveTypes{
   SECURITY,WATER,WHEELS,HEATING,POWER,EMPTY
 };
+
 // TODO: find out how callbacks are handled
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
 bool updateLocks[slaveTypesNumber];
@@ -51,15 +52,14 @@ NexButton b1 = NexButton(0, 9, "b1");  // Button added
 NexTouch *nex_listen_list[] = {
   &b1,  // Button added
 };
-    void b1PushCallback(void *ptr)  // Press event for button b1
-    {
-      digitalWrite(13, HIGH);  // Turn ON internal LED
-    }  // End of press event
 
-    void b1PopCallback(void *ptr)  // Release event for button b1
-    {
-      digitalWrite(13, LOW);  // Turn OFF internal LED
-    }
+void b1PushCallback(void *ptr){
+  digitalWrite(13, HIGH);  // Turn ON internal LED
+}  // End of press event
+
+void b1PopCallback(void *ptr){
+  digitalWrite(13, LOW);  // Turn OFF internal LED
+}
 
 Power power;
 Security security;
@@ -71,8 +71,7 @@ Temperatures temperatures;
 Weather weather(0,0);
 
 // remove after testing
-const char* slaveTypesNames[] =
-  {
+const char* slaveTypesNames[] = {
   stringify(SECURITY),
   stringify(WATER),
   stringify(WHEELS),
@@ -91,7 +90,7 @@ esp_now_peer_info_t untypedPeers[20]; // max nuber of untyped peers
 
 esp_now_peer_info_t peerToBePairedWith; // wont be neccesseary here
 
-esp_now_peer_info_t emptyInfo;
+esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my confort, of course memcpy with 0 would work to
 
 int getIndexOfUntyped(const uint8_t *mac_addr){
   for(int i; i< (sizeof(untypedPeers)/sizeof(untypedPeers[0])); i++){
@@ -133,6 +132,18 @@ bool doesntContainMac(uint8_t addr[]){
         Serial.println("Mac address is already stored");
         return false;
     }
+  }
+  return true;
+}
+
+// checks if two addresses are same
+boolean checkIfTwoAddressesAreSame(uint8_t addr1[], uint8_t addr2[]){
+  if(sizeof(addr1) != sizeof(addr2)){
+    Serial.println("diffrent size");
+    return false;
+  }
+  for(int i = 0; i < sizeof(addr1); i++){
+    if(addr1[i] != addr2[i]) return false;
   }
   return true;
 }
@@ -215,7 +226,7 @@ byte noOfAttempts = 0; // how many times have we tried to establish and verify c
 static bool ethConnected = false;
 const short callsign = 999;
 
-
+// root of server running on Olimex
 void handleRoot() {
   server.send(200, "text/plain", "hello from esp32!");
 }
@@ -236,7 +247,7 @@ void handleNotFound() {
   server.send(404, "text/plain", message);
 }
 
-
+// callback for WiFiEvent
 void WiFiEvent(WiFiEvent_t event){
   switch (event) {
     case SYSTEM_EVENT_ETH_START:
@@ -273,6 +284,7 @@ void WiFiEvent(WiFiEvent_t event){
   }
 }
 
+// tests if connection is running (for debug)
 void testClient(const char * host, uint16_t port){
   Serial.print("\nconnecting to ");
   Serial.println(host);
@@ -292,8 +304,8 @@ void testClient(const char * host, uint16_t port){
   client.stop();
 }
 
-
-void InitESPNow() {
+// Inits ESPNow
+void initESPNow() {
   WiFi.disconnect();
   if (esp_now_init() == ESP_OK) {
     Serial.println("ESPNow Init Success");
@@ -304,8 +316,8 @@ void InitESPNow() {
   }
 }
 
-
-// add boolean to stop scaning if slots are filled
+// scans network, finds all ESP32 unit
+// after unit is calls AttempToPair() for that unit()
 void ScanForSlave() {
   int8_t scanResults = WiFi.scanNetworks();
   Serial.println("");
@@ -349,19 +361,10 @@ void ScanForSlave() {
   WiFi.scanDelete();
 }
 
-boolean checkIfTwoAddressesAreSame(uint8_t addr1[], uint8_t addr2[]){
-  if(sizeof(addr1) != sizeof(addr2)){
-    Serial.println("diffrent size");
-    return false;
-  }
-  for(int i = 0; i < sizeof(addr1); i++){
-    if(addr1[i] != addr2[i]) return false;
-  }
-  return true;
-}
-
-// Check if the slave is already paired with the master.
-// If not, pair the slave with master
+// Checks if the slave is already paired with the master.
+// If not, than it pairs the unit with master and adds unit to untypedPeers 
+// than will send request for conformation same goes for when unit is paired but we didn't recived any info
+// units aren't (for now) removed from untypedPeers
 bool attempToPair() {
   Serial.print("Processing: ");
   for (int ii = 0; ii < 6; ++ii ) {
@@ -417,7 +420,7 @@ bool attempToPair() {
     } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
       // How did we get so far!!
       Serial.println("ESPNOW Not Init");
-      InitESPNow();
+      initESPNow();
       if(noOfAttempts < 8){
         attempToPair();
       }
@@ -443,7 +446,7 @@ bool attempToPair() {
     delay(100);
   }
 }
-
+// send 190 towards unit, index refers to index of unit in untypedPeers
 void sendDataToGetDeviceInfo(int index){
   Serial.println("Sending data to get info");
   uint8_t data = 190;
@@ -467,7 +470,7 @@ void sendDataToGetDeviceInfo(int index){
   }
 }
 
-// remove from arrays
+// remove peer (unpair)
 void deletePeer(esp_now_peer_info_t toDelete) {
   esp_err_t delStatus = esp_now_del_peer(toDelete.peer_addr);
   Serial.print("Slave Delete Status: ");
@@ -530,8 +533,8 @@ void sendData(SlaveTypes type) {
   }
 }
 
-// callback when data is sent from Master to Slave
-void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
+// callback for when data is sent from Master to Slave
+void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 20){ // try until data is send successfully
     noOfAttempts++;
     sendDataToGetDeviceInfo(getIndexOfUntyped(mac_addr));
@@ -545,7 +548,8 @@ void OnDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
-void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
+// callback for when data is recived from sensor unit
+void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -607,6 +611,7 @@ void OnDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println();
 }
 
+// remove unit that is fully set up
 void removeUnit(SlaveTypes type){
  deletePeer(getEspInfoForType(type));
  int index = getIndexInSlaveTypes(type);
@@ -614,6 +619,7 @@ void removeUnit(SlaveTypes type){
  espInfo[index] = emptyInfo;
 }
 
+// removes unactive units that didnt send any data (right data) in last 4 minutes
 void removeUnactiveUnits(){
   // checks if millis was reseted
   // if thats case all lastTimeRecived will be set to new value
@@ -648,24 +654,29 @@ void removeUnactiveUnits(){
     }
   }
 }
+
 void setup(){
   Serial.begin(115200);
+  Serial2.begin(9600, SERIAL_8N1,16,17);
+  //Serial1.print("baud=115200");
+  //Serial1.write(0xff);  // We always have to send this three lines after each command sent to nextion.
+  //Serial1.write(0xff);
+  //Serial1.write(0xff);
+  
+  //Serial.end();  // End the serial comunication of baud=9600
+  //Serial1.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
+
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
   WiFi.mode(WIFI_STA);
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
-  Serial.print("LOCAL IP: "); Serial.println(WiFi.localIP());
   // Init ESPNow with a fallback logic
-  InitESPNow();
+  initESPNow();
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
-  esp_now_register_send_cb(OnDataSent);
-  esp_now_register_recv_cb(OnDataRecv);
-  //delay(2000);
-  // summer / winter time or manual adjustment
-  
-  //
+  esp_now_register_send_cb(onDataSent);
+  esp_now_register_recv_cb(onDataRecv);
 
   for(int i = 0; i< 20; i++){
     for(int j = 0; i <6; i++){
@@ -677,36 +688,26 @@ void setup(){
   }
 
   server.on("/", handleRoot);
-
   server.on("/inline", []() {
     server.send(200, "text/plain", "this works as well");
   });
-
   server.onNotFound(handleNotFound);
   server.begin();
-  
-  //EEPROM.write(0, 64);
-
-  //EEPROM.commit();
-  NexButton b1 = NexButton(0, 9, "b1");  // Button added
 
   timeClient.begin();
   timeClient.setTimeOffset(7200);
   timeClient.forceUpdate();
-  
-  //int temp = EEPROM.read(0);
-  //Serial.print("On 0 is: "); Serial.println(temp);
-  //Serial.print("On 0 is: "); Serial.println(EEPROM.read(0));
-
-  
-
 }
+
 int interationCounter;
+
 // check if mac exist -> if not no action
 // check lastTimeRecived
+
 void loop(){
   //delay(1000);
   // TODO: update only some iterations
+  
   while(!timeClient.update()) {
    timeClient.setTimeOffset(timeOffset);
    timeClient.forceUpdate();
@@ -723,12 +724,13 @@ void loop(){
   timeStamp = formattedDate.substring(splitT+1, formattedDate.length()-1);
   Serial.print("HOUR: ");
   Serial.println(timeStamp);
-  //if (ethConnected) {
-  //  testClient("duckduckgo.com", 80);
-  //  server.handleClient();
-  //}
-
+  
+  if (ethConnected) {
+    testClient("duckduckgo.com", 80);
+    server.handleClient();
+  }
   // In the loop we scan for slave
+  
   ScanForSlave();
   // If Slave is found, it would be populate in `slave` variable
   // We will check if `slave` is defined and then we proceed further

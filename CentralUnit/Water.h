@@ -17,39 +17,39 @@ class Water : public UnitAbstract{
       if(data.connectionToWaterSource){
         startEndNextionCommand(); 
         command= "textWater.txt=připojena";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgWater.pic=14";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
         command= "textWater.txt=odpojena";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgWater.pic=13";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
       };
       startEndNextionCommand(); 
       switch(data.validityOfData){
         case 0:   
-          command = "textLiters.txt="+String(data.litersRemaining)+"l";
+          command = "textLiters.txt=\""+String(data.litersRemaining)+"l\"";
           break;
         case 1: 
-          command = "textLiters.txt="+String(data.litersRemaining)+"l?";
+          command = "textLiters.txt=\""+String(data.litersRemaining)+"l?\"";
           break;
         case 2:
-          command = "textLiters.txt=?EEPROM?";
+          command = "textLiters.txt=\"?EEPROM?\"";
           break;
         case 3:
-          command = "textLiters.txt=?REFILL?";
+          command = "textLiters.txt=\"?REFILL?\"";
           break;
       }
-      Serial.print(command);
+      Serial2.print(command);
       startEndNextionCommand(); 
       command= "textWaterTemp.txt="+String(data.temperature)+"°C";
-      Serial.print(command);
+      Serial2.print(command);
       startEndNextionCommand(); 
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit

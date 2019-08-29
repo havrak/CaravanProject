@@ -18,8 +18,8 @@ class Temperatures{
     void updateDataOnNextion(){
       String command;
       startEndNextionCommand();
-      command= "textAirTemp.txt="+String(average)+"°C";
-      Serial.print(command);
+      command= "textAirTemp.txt=\""+String(average)+"°C\"";
+      Serial2.print(command);
       startEndNextionCommand(); 
     }
     // will ask sensors directly not trought CentralUnit file, wil

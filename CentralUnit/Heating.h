@@ -20,25 +20,25 @@ class Heating : public UnitAbstract{
       String command;
       if(data.isHeatingOn){
         startEndNextionCommand(); 
-        command= "textHeating.txt=topí se";
-        Serial.print(command);
+        command= "textHeating.txt=\"topí se\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgHeating.pic=4";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
-        command= "textAmperes.txt="+String(data.amperesMax)+"A";
-        Serial.print(command);
+        command= "textAmperes.txt=\""+String(data.amperesMax)+"A\"";
+        Serial2.print(command);
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textHeating.txt=netopí se";
-        Serial.print(command);
+        command= "textHeating.txt=\"netopí se\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgHeating.pic=10";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
-        command= "textAmperes.txt=0A";
-        Serial.print(command);
+        command= "textAmperes.txt=\"0A\"";
+        Serial2.print(command);
         startEndNextionCommand(); 
       };
       // calc average of floors temp
@@ -50,7 +50,7 @@ class Heating : public UnitAbstract{
       sum = sum/(sizeof(data.temperaturesFloor)/sizeof(data.temperaturesFloor[0]));
       
       command= "textFloorTemp.txt="+String(sum)+"°C";
-      Serial.print(command);
+      Serial2.print(command);
       startEndNextionCommand(); 
     }
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit

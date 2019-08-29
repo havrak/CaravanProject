@@ -38,20 +38,20 @@ class Weather{
     void updateDataOnNextion(int hours){
       String command;
       startEndNextionCommand();
-      command = "textWTemp.txt="+temperature+"°C";
-      Serial.print(command);
+      command = "textWTemp.txt=\""+temperature+"°C\"";
+      Serial2.print(command);
       startEndNextionCommand();
-      command = "textWMinMax.txt="+temperatureMax+"°C ,"+temperatureMin+"°C";
-      Serial.print(command);
+      command = "textWMinMax.txt=\""+temperatureMax+"°C ,"+temperatureMin+"°C\"";
+      Serial2.print(command);
       startEndNextionCommand();
       // check field size
       command;
       if(windSpeed == 0){
-        command = "textWWind.txt="+windDirection+" ("+String(windSpeed)+"m/s)";
+        command = "textWWind.txt=\""+windDirection+" ("+String(windSpeed)+"m/s)\"";
       }else{
-        command = "textWWind.txt="+windDirection+" ("+String(windSpeed)+"m/s)";
+        command = "textWWind.txt=\""+windDirection+" ("+String(windSpeed)+"m/s)\"";
       }
-      Serial.print(command);
+      Serial2.print(command);
       startEndNextionCommand();
       // Add zataženo, oblačno
       // clouds == 0 ??
@@ -69,12 +69,12 @@ class Weather{
       }else{
         coverage = "jasno";
       }
-      command = "textWCloud.txt="+coverage;
-      Serial.print(command);
+      command = "textWCloud.txt=\""+coverage+"\"";
+      Serial2.print(command);
       startEndNextionCommand();
       // make substring or whatever
       command = "textWLocation.txt="+location;
-      Serial.print(command);
+      Serial2.print(command);
       startEndNextionCommand();
       // set icon according to weather id provided by openweather
       switch(weatherID){
@@ -83,12 +83,12 @@ class Weather{
           if(hours >4 || hours < 20){
             startEndNextionCommand();
             String command = "imgWeather.pic=42";
-            Serial.print(command);
+            Serial2.print(command);
             startEndNextionCommand();
           }else{
             startEndNextionCommand();
             String command = "imgWeather.pic=43";
-            Serial.print(command);
+            Serial2.print(command);
             startEndNextionCommand();
           }
           break;
@@ -97,12 +97,12 @@ class Weather{
            if(hours >4 || hours < 20){
             startEndNextionCommand();
             String command = "imgWeather.pic=44";
-            Serial.print(command);
+            Serial2.print(command);
             startEndNextionCommand();
           }else{
             startEndNextionCommand();
             String command = "imgWeather.pic=45";
-            Serial.print(command);
+            Serial2.print(command);
             startEndNextionCommand();
           }
           break;
@@ -112,7 +112,7 @@ class Weather{
         case 804:{
           startEndNextionCommand();
           String command = "imgWeather.pic=47";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
           break;
         }
@@ -315,31 +315,31 @@ class Weather{
       void drawModrateCloud(){
         startEndNextionCommand();
         String command = "imgWeather.pic=46";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
       void drawStrormWithRain(){
         startEndNextionCommand();
         String command = "imgWeather.pic=23";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();        
       }
       void drawStorm(){
         startEndNextionCommand();
         String command = "imgWeather.pic=24";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
       }
       void drawStromWithDrizzle(int hours){
         if(hours >4 || hours < 20){
           startEndNextionCommand();
           String command = "imgWeather.pic=25";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }else{
           startEndNextionCommand();
           String command = "imgWeather.pic=26";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }
       }
@@ -348,12 +348,12 @@ class Weather{
         if(hours >4 || hours < 20){
           startEndNextionCommand();
           String command = "imgWeather.pic=25";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }else{
           startEndNextionCommand();
           String command = "imgWeather.pic=26";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }
         
@@ -362,31 +362,31 @@ class Weather{
         if(hours >4 || hours < 20){
           startEndNextionCommand();
           String command = "imgWeather.pic=29";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }else{
           startEndNextionCommand();
           String command = "imgWeather.pic=30";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }
       }
       void drawOtherRain(){
         startEndNextionCommand();
         String command = "imgWeather.pic=33";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
       void drawRain(){
         startEndNextionCommand();
         String command = "imgWeather.pic=31";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
       void drawHeavyRain(){
         startEndNextionCommand();
         String command = "imgWeather.pic=32";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
 
@@ -394,12 +394,12 @@ class Weather{
         if(hours >4 || hours < 20){
           startEndNextionCommand();
           String command = "imgWeather.pic=34";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }else{
           startEndNextionCommand();
           String command = "imgWeather.pic=35";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }
       }
@@ -407,46 +407,46 @@ class Weather{
       void drawHeavySnow(){
         startEndNextionCommand();
         String command = "imgWeather.pic=36";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
       
       void drawSnowWithRain(){
         startEndNextionCommand();
         String command = "imgWeather.pic=37";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();
       }
       void drawLowVisibility(){
         startEndNextionCommand();
         String command = "imgWeather.pic=40";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
       }
       void drawLimitedVisibility(int hours){
         if(hours >4 || hours < 20){
           startEndNextionCommand();
           String command = "imgWeather.pic=38";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }else{
           startEndNextionCommand();
           String command = "imgWeather.pic=39";
-          Serial.print(command);
+          Serial2.print(command);
           startEndNextionCommand();
         }
       }
       void drawTornado(){
         startEndNextionCommand();
         String command = "imgWeather.pic=41";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand(); 
       }
 
       void drawUnknownVaules(){
         startEndNextionCommand();
         String command = "imgWeather.pic=48";
-        Serial.print(command);
+        Serial2.print(command);
         startEndNextionCommand();  
       }
 };
