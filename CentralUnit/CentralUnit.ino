@@ -526,8 +526,8 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   
   Serial.println();
-  Serial.print("\t\tLast Packet Recv from: "); Serial.println(macStr);
-  Serial.print("\t\tLast Packet Recv Data: "); Serial.println(*data);
+  Serial.print("Last Packet Recv from: "); Serial.println(macStr);
+  Serial.print("Last Packet Recv Data: "); Serial.println(*data);
   Serial.println();
   // check if it wont make trouble bool messageWasDiscarded
   bool wasUnitAdded = false;
@@ -557,7 +557,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       case WATER:
         Serial.println("adsadsad");
         validMessage = water.updateYourData(data);
-        validMessage ? heating.updateLastTimeRecived() : NULL;
+        validMessage ? water.updateLastTimeRecived() : NULL;
         break;
       case WHEELS:
         validMessage = wheels.updateYourData(data);
@@ -658,17 +658,24 @@ void setup(){
   for(int i; i < slaveTypesNumber; i++){
     slaveTypes[i] = EMPTY;
   }
-
+  /*
   server.on("/", handleRoot);
   server.on("/inline", []() {
     server.send(200, "text/plain", "this works as well");
   });
   server.onNotFound(handleNotFound);
   server.begin();
-
+  Serial.println("Server started");
+  */
+  WiFiClient client;
+  Serial.print("csadsad");
+  if (!client.connect("www.google.com", 80)) {
+    Serial.println("Cannot connect to server");
+  }
+  Serial.print("csadsad");
   timeClient.begin();
-  timeClient.setTimeOffset(7200);
-  timeClient.forceUpdate();
+  //updateTime();
+  //weather.update();
 }
 
 
@@ -677,10 +684,12 @@ void setup(){
 // check lastTimeRecived
 
 void updateTime(){
+  Serial.println("Updateing time");
   while(!timeClient.update()) {
    timeClient.setTimeOffset(timeOffset);
    timeClient.forceUpdate();
   }
+  Serial.print("time updated");
   // get unix time and sets it into Time.h for timekeeping
   setTime(timeClient.getEpochTime());
 }
@@ -691,6 +700,7 @@ void startEndNextionCommand(){
 }
 
 void displayTime(){
+  Serial.print("hours is: "); Serial.println(hour());
   String command;
   // in "" is mode with zeroes
   startEndNextionCommand();
@@ -712,17 +722,19 @@ void displayTime(){
   startEndNextionCommand(); 
 }
 
-int interationCounter;
+int interationCounter = 0;
 void loop(){
   //delay(1000);
   // TODO: update only some iterations
-  //if(interationCounter % 1000 == 0 ){
-  //  updateTime(); 
-  //}
+  if(interationCounter % 1000 == 0 ){
+    updateTime(); 
+    weather.update();
+  }
   
-  //displayTime();
+  displayTime();
   ScanForSlave();
   
+  weather.updateDataOnNextion(9);
   //if (ethConnected) {
   //  testClient("duckduckgo.com", 80);
   //  server.handleClient();

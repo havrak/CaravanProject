@@ -26,12 +26,10 @@ bool eepromOn = false;
 bool relayOpen = false;
 bool connectionToWaterSource;
 
-
-
 float litersRemaining;
 float temperature;
 
-bool connectionToWater;
+//bool connectionToWater;
 bool topTankSensor;
 bool bottomTankSensor;
 int pulseCounter;
@@ -122,12 +120,17 @@ void loadDataFromEEPROM(){
     relayOpen = EEPROM.read(9);  
   }
 }
+int counter = 0;
+
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral){ // try until data is send successfully
+  if(status != ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral && counter <10){ // try until data is send successfully
     Serial.println("Sending info failed");
+    delay(100);
     sendConfirmation();
+    counter++;
   }else{
     sendedIMyTypeToCentral = true;
+    counter=0;
   }
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
@@ -140,16 +143,17 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void sendData() {
   Serial.println("Sending data");
   SendRecvDataStruct data;
-  /*
+  
   data.connectionToWaterSource = connectionToWaterSource;
   data.litersRemaining = litersRemaining;
   data.temperature = temperature;
   data.validityOfData = validityOfData;
-  */
+  /*
   data.connectionToWaterSource = true;
   data.litersRemaining = 23.4;
   data.temperature = 12.7;
   data.validityOfData = 0;
+  */
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
  
@@ -190,6 +194,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       Serial.print("Got masters addr");
       master.channel = 1;
       master.encrypt = 0;
+      counter=0;
       memcpy(master.peer_addr, mac_addr, sizeof(master.peer_addr)); // size if diffrent
       sendedIMyTypeToCentral = false;
       esp_err_t addStatus = esp_now_add_peer(&master);
@@ -227,7 +232,7 @@ void sendConfirmation(){
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("ESPNow/Basic/Slave Example");
+  
   //Set device in AP mode to begin with
   WiFi.mode(WIFI_AP_STA);
   // configure device AP mode
@@ -245,51 +250,69 @@ void setup() {
   }else{
     loadDataFromEEPROM();
   }
+  
   pinMode(4, OUTPUT);                     // relay (LOW on, HIGH off) - when on water can start flowing to water tank
   pinMode(15, INPUT);                     // sensor of upper water level, HIGH on - sensor sends one if top sensor was hitted
   pinMode(13, INPUT);                     // sensor of lower water level, HIGH on
   pinMode(5, INPUT);                      // flowmeter sends impule 
+  pinMode(14, INPUT);
   attachInterrupt(5, addPulse, FALLING);  // added interrupt for flow meter impulses
 }
 
+int val;
 byte count = 0;
 void loop() {
-  int val;
-  connectionToWater = (analogRead(ANALOG_PIN) > 250) ? true : false;
-  topTankSensor = (digitalRead(13) == HIGH) ? true : false;
-  bottomTankSensor = (digitalRead(15) == HIGH) ? true : false;
+  int val = analogRead(ANALOG_PIN);
+  val = analogRead(14);
+  connectionToWaterSource = (val > 250) ? true : false;
+  topTankSensor = (digitalRead(15) == HIGH) ? true : false;
+  bottomTankSensor = (digitalRead(13) == HIGH) ? true : false;
   // take care of temperature
-  if(connectionToWater && !topTankSensor && temperature > 4){
+  Serial.print("adsadsadsa");
+  Serial.print("Connection to water : "); Serial.println(connectionToWaterSource);
+  Serial.print("Preasure            : "); Serial.println(val);
+  Serial.print("Top                 : "); Serial.println(topTankSensor);
+  Serial.print("Bottom              : "); Serial.println(bottomTankSensor);
+  // temperature > 4
+  /*
+  if(connectionToWaterSource && !topTankSensor && !relayOpen){
     // we can refill tank
+    Serial.println("Refilling");
     digitalWrite(4, LOW);
     relayOpen = true;
     // add value for refilling
   }else if(relayOpen && topTankSensor){
     // close reffiling of tank
+    Serial.println("Refilling finished");
     digitalWrite(4, HIGH);
     relayOpen = false;  
     litersRemaining = maxVolumeOfTank;
     validityOfData = 0;
     pulseCounter = 0;
-  }else if(!connectionToWater && relayOpen){
+  }else if(!connectionToWaterSource && relayOpen){
+    Serial.println("Refilling stopped");
     // tank had been refilling but water source was disconnected
     // we have no method guessing how much is in tank (there is no input pulse counter)
     relayOpen = false;
     digitalWrite(4, HIGH);
     validityOfData = 4;
   }else if(bottomTankSensor == true){
+    Serial.println("Bottom sensor");
     // we can readjust volume of water left in tank
     litersRemaining = remainderWhenLowSensorHitted;
     validityOfData = 0;
   }
   // give cpu rest
   //delay(500);
+  
   delay(1000);
+  
   // sendDataToUnit every half a minute
   // return to 6
-  if(count % 1 == 0){
-    sendData();
-    count = 0;
-  }
-  count++; 
+  //if(count % 6 == 0){
+  //  sendData();
+  //  count = 0;
+  //}
+  //count++; 
+  */
 }

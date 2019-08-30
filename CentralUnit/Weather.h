@@ -179,7 +179,9 @@ class Weather{
         default: drawUnknownVaules(); break;
       }
     }
-
+    bool update(){
+      return getWeather();
+    }
     private:
       WiFiClient client;
       // for some reason IP cannot be created here and needs to be passed from main
@@ -222,9 +224,11 @@ class Weather{
 
 
       bool getWeather(){
+          Serial.println("Getting weather");
           String result ="";
           const int httpPort = 80;
           if (!client.connect(servername, httpPort)) {
+            Serial.println("Cannot connect to server");
             return false;
           }
           // We now create a URI for the request
@@ -241,6 +245,7 @@ class Weather{
           while (client.available() == 0) {
             if (millis() - timeout > 5000) {
             client.stop();
+            Serial.println("Client is not available");
             return false;
             }
           }
