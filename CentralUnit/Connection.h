@@ -46,7 +46,7 @@ class Connection{
         }
         Serial2.print(command);
         startEndNextionCommand(); 
-        command= "textUplink.txt=\""+String(Uplink)+"Mb/s\"";
+        command= "textState.txt=\""+String(Uplink)+"Mb/s\"";
         Serial2.print(command);
         startEndNextionCommand(); 
       }else{
@@ -85,9 +85,9 @@ class Connection{
       bool didIAuthorized = false;
       
       void startEndNextionCommand(){
-        Serial.write(0xff);
-        Serial.write(0xff);
-        Serial.write(0xff);
+        Serial2.write(0xff);
+        Serial2.write(0xff);
+        Serial2.write(0xff);
       }
 };
 #endif CONNECTION_H

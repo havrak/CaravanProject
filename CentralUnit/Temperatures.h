@@ -38,9 +38,9 @@ class Temperatures{
     }
   private:
     void startEndNextionCommand(){
-      Serial.write(0xff);
-      Serial.write(0xff);
-      Serial.write(0xff);
+      Serial2.write(0xff);
+      Serial2.write(0xff);
+      Serial2.write(0xff);
     }
 
 };

@@ -541,7 +541,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         wasUnitAdded = true;
       }else{ // we expect right input on first try
         deletePeer(untypedPeers[i]);
-        untypedPeers[1] = emptyInfo;
+        untypedPeers[i] = emptyInfo;
       }
     }
   }

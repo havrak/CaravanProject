@@ -61,6 +61,7 @@ class Water : public UnitAbstract{
         memcpy(&data, newData, sizeof(data));
         return true;
       }
+      Serial.print("Data: "); Serial.println(data.litersRemaining);
       return false;
     }
     

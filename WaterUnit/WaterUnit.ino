@@ -138,7 +138,7 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void sendData() {
-  Serial.print("Sending data");
+  Serial.println("Sending data");
   SendRecvDataStruct data;
   /*
   data.connectionToWaterSource = connectionToWaterSource;
@@ -283,7 +283,8 @@ void loop() {
     validityOfData = 0;
   }
   // give cpu rest
-  delay(500);
+  //delay(500);
+  delay(1000);
   // sendDataToUnit every half a minute
   // return to 6
   if(count % 1 == 0){
