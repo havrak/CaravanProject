@@ -81,6 +81,7 @@ esp_now_peer_info_t peerToBePairedWith; // wont be neccesseary here
 
 esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my confort, of course memcpy with 0 would work to
 
+// does this work
 int getIndexOfUntyped(const uint8_t *mac_addr){
   for(int i; i< (sizeof(untypedPeers)/sizeof(untypedPeers[0])); i++){
     if(*mac_addr == *untypedPeers[i].peer_addr){
@@ -669,13 +670,13 @@ void setup(){
   */
   WiFiClient client;
   Serial.print("csadsad");
-  if (!client.connect("www.google.com", 80)) {
+  if (!client.connect("google.com", 80)) {
     Serial.println("Cannot connect to server");
   }
   Serial.print("csadsad");
   timeClient.begin();
-  //updateTime();
-  //weather.update();
+  updateTime();
+  weather.update();
 }
 
 
@@ -684,7 +685,7 @@ void setup(){
 // check lastTimeRecived
 
 void updateTime(){
-  Serial.println("Updateing time");
+  Serial.println("Updating time");
   while(!timeClient.update()) {
    timeClient.setTimeOffset(timeOffset);
    timeClient.forceUpdate();

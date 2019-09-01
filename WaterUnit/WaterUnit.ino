@@ -6,10 +6,11 @@
 #include <WiFi.h>
 #include <EEPROM.h>
 
-// TODO: check size 
+// TODO: check size, check if EEPROM size is in bytes/bits
 #define EEPROM_SIZE 80
 #define CHANNEL 1
 
+// can't be 14 if you want wifi to work, only possible pins are GPIO 32-39
 #define ANALOG_PIN 14 // preasure - connected to analog pin 3
 // outside leads to ground and +5V 
 
@@ -34,6 +35,17 @@ bool topTankSensor;
 bool bottomTankSensor;
 int pulseCounter;
 byte validityOfData;
+
+boolean checkIfTwoAddressesAreSame(const uint8_t addr1[],const uint8_t addr2[]){
+  if(sizeof(addr1) != sizeof(addr2)){
+    Serial.println("diffrent size");
+    return false;
+  }
+  for(int i = 0; i < sizeof(addr1); i++){
+    if(addr1[i] != addr2[i]) return false;
+  }
+  return true;
+}
 
 // send and recive structure, for ease of access it it used only for reciving and sending data, ESP32 has plenty of room to store those data 2 times 
 struct SendRecvDataStruct{
@@ -191,6 +203,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   // add protection
   if (*data == (uint8_t) 190){
+    if((sendedIMyTypeToCentral && checkIfTwoAddressesAreSame(master.peer_addr, mac_addr)) || !sendedIMyTypeToCentral){ // prevent hijack of unit (very simple way)
       Serial.print("Got masters addr");
       master.channel = 1;
       master.encrypt = 0;
@@ -200,6 +213,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       esp_err_t addStatus = esp_now_add_peer(&master);
       sendConfirmation();
       memcpy(&master_addr,&mac_addr,sizeof(mac_addr));
+    }
   }
   if(*mac_addr == master_addr){
   	  // procede
@@ -245,9 +259,9 @@ void setup() {
   esp_now_register_send_cb(onDataSent);
 
   if (!EEPROM.begin(EEPROM_SIZE)){
-    validityOfData = 2;
+    validityOfData = 2; // we cant read from EEPROM
     Serial.println("failed to initialise EEPROM");
-  }else{
+  }else{ // if EERPROM is empty validity is set to 2, if data is loaded validity is set to 1
     loadDataFromEEPROM();
   }
   
@@ -262,19 +276,17 @@ void setup() {
 int val;
 byte count = 0;
 void loop() {
-  int val = analogRead(ANALOG_PIN);
-  val = analogRead(14);
-  connectionToWaterSource = (val > 250) ? true : false;
+  connectionToWaterSource = (analogRead(ANALOG_PIN) > 250) ? true : false;
   topTankSensor = (digitalRead(15) == HIGH) ? true : false;
   bottomTankSensor = (digitalRead(13) == HIGH) ? true : false;
   // take care of temperature
-  Serial.print("adsadsadsa");
+  
   Serial.print("Connection to water : "); Serial.println(connectionToWaterSource);
   Serial.print("Preasure            : "); Serial.println(val);
   Serial.print("Top                 : "); Serial.println(topTankSensor);
   Serial.print("Bottom              : "); Serial.println(bottomTankSensor);
   // temperature > 4
-  /*
+ 
   if(connectionToWaterSource && !topTankSensor && !relayOpen){
     // we can refill tank
     Serial.println("Refilling");
@@ -305,14 +317,14 @@ void loop() {
   // give cpu rest
   //delay(500);
   
-  delay(1000);
+  delay(500);
   
   // sendDataToUnit every half a minute
   // return to 6
-  //if(count % 6 == 0){
-  //  sendData();
-  //  count = 0;
-  //}
-  //count++; 
-  */
+  if(count % 6 == 0){
+    sendData();
+    count = 0;
+  }
+  count++; 
+  
 }
