@@ -224,13 +224,14 @@ class Weather{
 
 
       bool getWeather(){
-          Serial.println("Getting weather");
+          Serial.println("WEATHER | UPDATE");
           String result ="";
           const int httpPort = 80;
           if (!client.connect(servername, httpPort)) {
             Serial.println("Cannot connect to server");
             return false;
           }
+          Serial.println("WEATHER | GOT CONNECTION");
           // We now create a URI for the request
           // replace with yours APPID
           String latStr = String(lat, 5);
@@ -249,21 +250,27 @@ class Weather{
             return false;
             }
           }
-
+          int i = 1;
           // Read all the lines of the reply from server
-          while(client.available()) {
+          Serial.println("WEATHER | GETTING DATA FORM SERVER");
+          while(client.available()) { // doesn't work
             result = client.readStringUntil('\r');
+            //Serial.println("WEATHER | GOT DATA");
+            Serial.println(i);
+            i++;
           }
-
+          Serial.println(result);
+          Serial.println("WEATHER | GOT DATA");
+          // work till here
           // remove notation for array
           result.replace('[', ' ');
           result.replace(']', ' ');
-
+          Serial.println("WEATHER | REPLACED DATA");
 
           char jsonArray [result.length()+1];
           result.toCharArray(jsonArray,sizeof(jsonArray));
           jsonArray[result.length() + 1] = '\0';
-
+          Serial.println("WEATHER | ARRAY CREATED");
           StaticJsonDocument<1024> jsonDoc;
           // check if it works
           DeserializationError err = deserializeJson(jsonDoc, jsonArray);
@@ -272,7 +279,7 @@ class Weather{
             return false;
           }
           JsonObject root = jsonDoc.as<JsonObject>();
-
+          Serial.println("WEATHER | JSON CREATED");
           // const char* is so obstructed in JsonObject that you need conversion to const char* to convert it to string
           location = String((const char*)root["list"]["sys"]["name"]);
           temperature = String((const char*)root["list"]["main"]["temp"]);
@@ -281,13 +288,14 @@ class Weather{
           temperatureMax = String((const char*)root["list"]["main"]["temp_max"]);
           temperatureMin = String((const char*)root["list"]["main"]["temp_min"]);
           timeS = String((const char*)root["list"]["dt_txt"]);
-
+          Serial.println("WEATHER | FILLED STRINGS");
           weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
           windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
           windSpeed = String((const char*)root["list"]["wind"]["speed"]).toFloat();
           clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
           setWindDirection();
-
+          Serial.println("WEATHER | CONVERTED TO NUMBERS");
+          
           Serial.print("\nWeatherID: ");
           Serial.print(weatherID);
           // same serial is used for nextion as for debug

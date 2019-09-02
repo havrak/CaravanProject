@@ -669,14 +669,12 @@ void setup(){
   Serial.println("Server started");
   */
   WiFiClient client;
-  Serial.print("csadsad");
-  if (!client.connect("google.com", 80)) {
-    Serial.println("Cannot connect to server");
-  }
-  Serial.print("csadsad");
+  
+
+  
   timeClient.begin();
   updateTime();
-  weather.update();
+  //weather.update();
 }
 
 
@@ -685,14 +683,16 @@ void setup(){
 // check lastTimeRecived
 
 void updateTime(){
-  Serial.println("Updating time");
+  Serial.println("Time is being updated");
+  timeClient.setTimeOffset(timeOffset);
   while(!timeClient.update()) {
-   timeClient.setTimeOffset(timeOffset);
-   timeClient.forceUpdate();
-  }
-  Serial.print("time updated");
+    timeClient.forceUpdate();
+    Serial.println("time updated");
+  } 
   // get unix time and sets it into Time.h for timekeeping
   setTime(timeClient.getEpochTime());
+  formattedDate = timeClient.getFormattedDate();
+  Serial.println(formattedDate);
 }
 void startEndNextionCommand(){
   Serial.write(0xff);
@@ -701,7 +701,7 @@ void startEndNextionCommand(){
 }
 
 void displayTime(){
-  Serial.print("hours is: "); Serial.println(hour());
+  Serial.print("Hours is: "); Serial.println(hour());
   String command;
   // in "" is mode with zeroes
   startEndNextionCommand();
@@ -729,17 +729,22 @@ void loop(){
   // TODO: update only some iterations
   if(interationCounter % 1000 == 0 ){
     updateTime(); 
+    delay(50);
+    Serial.println("Updating weather");
     weather.update();
+    interationCounter = 0;
+  }
+  if (ethConnected) {
+    Serial.println("Connecting to duckduckgo");
+    testClient("duckduckgo.com", 80);
+    server.handleClient();
   }
   
   displayTime();
   ScanForSlave();
   
   weather.updateDataOnNextion(9);
-  //if (ethConnected) {
-  //  testClient("duckduckgo.com", 80);
-  //  server.handleClient();
-  //}
+
   water.updateDataOnNextion();
   //sendData(WATER);
   removeUnactiveUnits();
