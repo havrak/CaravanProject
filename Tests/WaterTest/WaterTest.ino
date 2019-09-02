@@ -20,6 +20,7 @@ void setup() {
   pinMode(15, INPUT);             // snímač hladiny Horni, LOW sepnuto
   pinMode(13, INPUT);             // snímač hladiny spodní, LOW sepnuto
   pinMode(5, INPUT);              // Prutokomer impulsy
+  pinMode(14, INPUT);
   attachInterrupt(5, AddPulse, FALLING);
  
   digitalWrite(4, LOW);

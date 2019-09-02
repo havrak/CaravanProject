@@ -6,10 +6,9 @@ Point of project is to automatized certain tasks in caravan like controlling hea
 More info will be added, including which components are used.
 
 ## libaries used
-+ Bridge
 + NTPClient
 + espsoftwareserial (https://github.com/jdollar/espsoftwareserial/)
-+ Ethernet
 + ITEADLIB_Arduino_Nextion (https://github.com/itead/ITEADLIB_Arduino_Nextion)
-+ Time
++ Time (https://github.com/PaulStoffregen/Time)
 + ArduinoJson (https://github.com/bblanchon/ArduinoJson)
+

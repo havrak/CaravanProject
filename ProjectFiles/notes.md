@@ -6,9 +6,14 @@
 + check comparing mac addresse
 + if you can compare only with == or need to compare each var in addr, should work == for empty
 
++ add delete master to sensor unit
+	+ in case connection is lost and master losses its connection
+
+
 /interface ethernet poe set ether4 poe-out=off
 /interface ethernet poe set ether4 poe-out=forced-on
 
++ time update can get into infinite loop
 
 10 - 7447
 20 - 7836
