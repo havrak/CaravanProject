@@ -734,11 +734,11 @@ void loop(){
     weather.update();
     interationCounter = 0;
   }
-  if (ethConnected) {
-    Serial.println("Connecting to duckduckgo");
-    testClient("duckduckgo.com", 80);
-    server.handleClient();
-  }
+  //if (ethConnected) {
+  //  Serial.println("Connecting to duckduckgo");
+  //  testClient("duckduckgo.com", 80);
+  //  server.handleClient();
+  //}
   
   displayTime();
   ScanForSlave();

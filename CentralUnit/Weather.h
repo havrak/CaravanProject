@@ -270,34 +270,41 @@ class Weather{
           char jsonArray [result.length()+1];
           result.toCharArray(jsonArray,sizeof(jsonArray));
           jsonArray[result.length() + 1] = '\0';
+          
           Serial.println("WEATHER | ARRAY CREATED");
           StaticJsonDocument<1024> jsonDoc;
           // check if it works
-          DeserializationError err = deserializeJson(jsonDoc, jsonArray);
-          if (err != DeserializationError::Ok ){
+          //DeserializationError err = deserializeJson(jsonDoc, jsonArray);
+          DeserializationError err = deserializeJson(jsonDoc, result);
+          if (err != DeserializationError::Ok ){ // seems to work
             Serial.println("parseObject() failed");
-            return false;
+            return false; 
           }
-          JsonObject root = jsonDoc.as<JsonObject>();
+          //JsonObject root = jsonDoc.as<JsonObject>(); // does it work ??????
           Serial.println("WEATHER | JSON CREATED");
           // const char* is so obstructed in JsonObject that you need conversion to const char* to convert it to string
-          location = String((const char*)root["list"]["sys"]["name"]);
-          temperature = String((const char*)root["list"]["main"]["temp"]);
-          weather = String((const char*)root["list"]["weather"]["main"]);
-          description = String((const char*)root["list"]["weather"]["description"]);
-          temperatureMax = String((const char*)root["list"]["main"]["temp_max"]);
-          temperatureMin = String((const char*)root["list"]["main"]["temp_min"]);
-          timeS = String((const char*)root["list"]["dt_txt"]);
+          //const char* test = jsonDoc["sys"]["name"];
+          const char* test = jsonDoc["main"]["temp"]; // is empty
+          Serial.print("Test value is: ")
+          Serial.println(test);
+          delay(10);
           Serial.println("WEATHER | FILLED STRINGS");
-          weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
-          windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
-          windSpeed = String((const char*)root["list"]["wind"]["speed"]).toFloat();
-          clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
-          setWindDirection();
+          //temperature = String((const char*)root["list"]["main"]["temp"]);
+          //weather = String((const char*)root["list"]["weather"]["main"]);
+          //description = String((const char*)root["list"]["weather"]["description"]);
+          //temperatureMax = String((const char*)root["list"]["main"]["temp_max"]);
+          //temperatureMin = String((const char*)root["list"]["main"]["temp_min"]);
+          ///timeS = String((const char*)root["list"]["dt_txt"]);
+          
+          //weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
+          //windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
+          //windSpeed = String((const char*)root["list"]["wind"]["speed"]).toFloat();
+          //clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
+          //setWindDirection();
           Serial.println("WEATHER | CONVERTED TO NUMBERS");
           
           Serial.print("\nWeatherID: ");
-          Serial.print(weatherID);
+          Serial.println(weatherID);
           // same serial is used for nextion as for debug
           startEndNextionCommand();
 
