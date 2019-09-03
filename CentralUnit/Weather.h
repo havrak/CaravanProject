@@ -57,17 +57,17 @@ class Weather{
       // clouds == 0 ??
       String coverage;
       if(clouds == 100){
-        coverage = "zataženo";
+        coverage = "overcast";
       }else if(clouds > 87){
-        coverage = "skoro zataženo";
+        coverage = "broken";
       }else if(clouds > 62){
-        coverage = "oblačno";
+        coverage = "mostly cloudy";
       }else if(clouds > 37){
-        coverage = "polojasno";
+        coverage = "partly cloudy";
       }else if(clouds > 12){
-        coverage = "skoro jasno";
+        coverage = "mostly sunny";
       }else{
-        coverage = "jasno";
+        coverage = "sunny";
       }
       command = "textWCloud.txt=\""+coverage+"\"";
       Serial2.print(command);
@@ -312,23 +312,23 @@ class Weather{
       // check it, no need to test for speed zero (will be taken care of in sendDatatoNextion())
       void setWindDirection(){
         if(windDeg >= 338){
-          windDirection = "Severní";
+          windDirection = "North";
         }else if(windDeg >= 292){
-          windDirection = "Severozápadní";
+          windDirection = "Northwest";
         }else if(windDeg >= 248){
-          windDirection = "Západní";
+          windDirection = "West";
         }else if(windDeg >= 202){
-          windDirection = "Jihozápadní";
+          windDirection = "Southwest";
         }else if(windDeg >= 158){
-          windDirection = "Jižní";
+          windDirection = "South";
         }else if(windDeg >= 112){
-          windDirection = "Jihovýchodní";
+          windDirection = "Southeast";
         }else if(windDeg >= 68){
-          windDirection = "Východní";
+          windDirection = "East";
         }else if(windDeg >= 22){
-          windDirection = "Severovýchodní";
+          windDirection = "Northeast";
         }else{
-          windDirection = "Severní";
+          windDirection = "North";
         }
       }
       

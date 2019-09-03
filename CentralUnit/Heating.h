@@ -20,7 +20,7 @@ class Heating : public UnitAbstract{
       String command;
       if(data.isHeatingOn){
         startEndNextionCommand(); 
-        command= "textHeating.txt=\"topí se\"";
+        command= "textHeating.txt=\"ON\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgHeating.pic=4";
@@ -31,7 +31,7 @@ class Heating : public UnitAbstract{
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textHeating.txt=\"netopí se\"";
+        command= "textHeating.txt=\"OFF\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgHeating.pic=10";

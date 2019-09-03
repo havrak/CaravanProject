@@ -17,7 +17,7 @@ class Water : public UnitAbstract{
       String command;
       if(data.connectionToWaterSource){
         startEndNextionCommand(); 
-        command= "textWater.txt=\"připojena\"";
+        command= "textWater.txt=\"Connected\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgWater.pic=14";
@@ -25,7 +25,7 @@ class Water : public UnitAbstract{
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textWater.txt=\"odpojena\"";
+        command= "textWater.txt=\"Disconnected\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgWater.pic=13";

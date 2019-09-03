@@ -17,7 +17,7 @@ class Power : public UnitAbstract{
       // green plug, charging battery icon (even when charged)
       if(data.connectionToPowerOutlet){
         startEndNextionCommand(); 
-        command= "textPower.txt=\"Připojena\"";
+        command= "textPower.txt=\"Connected\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgPower.pic=9";
@@ -28,7 +28,7 @@ class Power : public UnitAbstract{
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textPower.txt=\"Opojena\"";
+        command= "textPower.txt=\"Disconnected\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgPower.pic=8";

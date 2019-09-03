@@ -19,7 +19,7 @@ class Security : public UnitAbstract{
       String command;
       if(data.state){
         startEndNextionCommand(); 
-        command= "textGPSState.txt=\"Zapnuto\"";
+        command= "textGPSState.txt=\"ON\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgGPSState.pic=4";
@@ -33,7 +33,7 @@ class Security : public UnitAbstract{
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textGPSState.txt=\"Vypnuto\"";
+        command= "textGPSState.txt=\"OFF\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgGPSState.pic=10";
