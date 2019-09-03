@@ -36,6 +36,8 @@ bool bottomTankSensor;
 int pulseCounter;
 byte validityOfData;
 
+int lastTimeDataRecived = 0;
+
 boolean checkIfTwoAddressesAreSame(const uint8_t addr1[],const uint8_t addr2[]){
   if(sizeof(addr1) != sizeof(addr2)){
     Serial.println("diffrent size");
@@ -213,10 +215,17 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       esp_err_t addStatus = esp_now_add_peer(&master);
       sendConfirmation();
       memcpy(&master_addr,&mac_addr,sizeof(mac_addr));
+      lastTimeDataRecived = 0;
     }
   }
   if(*mac_addr == master_addr){
-  	  // procede
+  	  if(*data == (uint8_t) 88){ // we recived ping from main station
+  	    lastTimeDataRecived = millis();
+  	  }else{
+  	    lastTimeDataRecived = millis();
+        // here goes code to copy to internal variables
+        
+  	 }
   }
 }
 
@@ -275,7 +284,42 @@ void setup() {
 
 int val;
 byte count = 0;
+
+void deletePeer(esp_now_peer_info_t toDelete) {
+  
+}
+
+void deleteUnactiveMaster(){
+  if(millis() < lastTimeDataRecived){
+    lastTimeDataRecived = millis();
+    
+  }else if(millis() - lastTimeDataRecived > 240000){
+    bool sendedIMyTypeToCentral = false;
+    uint8_t master_addr = 0;  
+    memcpy(&master, 0 , sizeof(master));
+    
+    esp_err_t delStatus = esp_now_del_peer(master.peer_addr);
+    Serial.print("Slave Delete Status: ");
+    if (delStatus == ESP_OK) {
+      // Delete success
+      Serial.println("Success");
+    } else if (delStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+      Serial.println("ESPNOW Not Init");
+    } else if (delStatus == ESP_ERR_ESPNOW_ARG) {
+      Serial.println("Invalid Argument");
+    } else if (delStatus == ESP_ERR_ESPNOW_NOT_FOUND) {
+      Serial.println("Peer not found.");
+    } else {
+      Serial.println("Not sure what happened");
+    } 
+  }
+
+}
+
 void loop() {
+  // delete master if he is unactive
+  deleteUnactiveMaster();
+  // check for unactive
   connectionToWaterSource = (analogRead(ANALOG_PIN) > 250) ? true : false;
   topTankSensor = (digitalRead(15) == HIGH) ? true : false;
   bottomTankSensor = (digitalRead(13) == HIGH) ? true : false;

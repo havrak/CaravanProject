@@ -723,6 +723,25 @@ void displayTime(){
   startEndNextionCommand(); 
 }
 
+void pingEachSesnorUnit(){
+  uint8_t data = 88;
+  if(security.getEstablishedConnection()){
+    esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
+  }
+  if(water.getEstablishedConnection()){
+    esp_err_t result = esp_now_send(getEspInfoForType(WATER).peer_addr, &data, sizeof(data));
+  }
+  if(wheels.getEstablishedConnection()){
+    esp_err_t result = esp_now_send(getEspInfoForType(WHEELS).peer_addr, &data, sizeof(data));
+  }
+  if(heating.getEstablishedConnection()){
+    esp_err_t result = esp_now_send(getEspInfoForType(HEATING).peer_addr, &data, sizeof(data));
+  }
+  if(power.getEstablishedConnection()){
+    esp_err_t result = esp_now_send(getEspInfoForType(POWER).peer_addr, &data, sizeof(data));
+  }
+}
+
 int interationCounter = 0;
 void loop(){
   //delay(1000);
@@ -732,7 +751,8 @@ void loop(){
     delay(50);
     Serial.println("Updating weather");
     weather.update();
-    interationCounter = 0;
+    interationCounter = 0;    
+    pingEachSesnorUnit();     // pig units
   }
   //if (ethConnected) {
   //  Serial.println("Connecting to duckduckgo");
