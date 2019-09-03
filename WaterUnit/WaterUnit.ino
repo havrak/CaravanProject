@@ -114,6 +114,7 @@ void storeDataInEEPROM(){
     EEPROM.write(i+5,temp[i]);
   }
   EEPROM.write(9,relayOpen);  
+  EEPROM.commit();
 }
 
 void loadDataFromEEPROM(){
@@ -253,6 +254,32 @@ void sendConfirmation(){
   }
 }
 
+void deleteUnactiveMaster(){
+  if(millis() < lastTimeDataRecived){
+    lastTimeDataRecived = millis();
+    
+  }else if(millis() - lastTimeDataRecived > 240000){
+    bool sendedIMyTypeToCentral = false;
+    uint8_t master_addr = 0;  
+    memcpy(&master, 0 , sizeof(master));
+    
+    esp_err_t delStatus = esp_now_del_peer(master.peer_addr);
+    Serial.print("Slave Delete Status: ");
+    if (delStatus == ESP_OK) {
+      // Delete success
+      Serial.println("Success");
+    } else if (delStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+      Serial.println("ESPNOW Not Init");
+    } else if (delStatus == ESP_ERR_ESPNOW_ARG) {
+      Serial.println("Invalid Argument");
+    } else if (delStatus == ESP_ERR_ESPNOW_NOT_FOUND) {
+      Serial.println("Peer not found.");
+    } else {
+      Serial.println("Not sure what happened");
+    } 
+  }
+}
+
 void setup() {
   Serial.begin(115200);
   
@@ -285,36 +312,7 @@ void setup() {
 int val;
 byte count = 0;
 
-void deletePeer(esp_now_peer_info_t toDelete) {
-  
-}
 
-void deleteUnactiveMaster(){
-  if(millis() < lastTimeDataRecived){
-    lastTimeDataRecived = millis();
-    
-  }else if(millis() - lastTimeDataRecived > 240000){
-    bool sendedIMyTypeToCentral = false;
-    uint8_t master_addr = 0;  
-    memcpy(&master, 0 , sizeof(master));
-    
-    esp_err_t delStatus = esp_now_del_peer(master.peer_addr);
-    Serial.print("Slave Delete Status: ");
-    if (delStatus == ESP_OK) {
-      // Delete success
-      Serial.println("Success");
-    } else if (delStatus == ESP_ERR_ESPNOW_NOT_INIT) {
-      Serial.println("ESPNOW Not Init");
-    } else if (delStatus == ESP_ERR_ESPNOW_ARG) {
-      Serial.println("Invalid Argument");
-    } else if (delStatus == ESP_ERR_ESPNOW_NOT_FOUND) {
-      Serial.println("Peer not found.");
-    } else {
-      Serial.println("Not sure what happened");
-    } 
-  }
-
-}
 
 void loop() {
   // delete master if he is unactive
