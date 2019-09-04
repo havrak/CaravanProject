@@ -683,11 +683,13 @@ void setup(){
 // check lastTimeRecived
 
 void updateTime(){
-  Serial.println("Time is being updated");
+  byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
+  Serial.println("TIME | UPDATING");
   timeClient.setTimeOffset(timeOffset);
-  while(!timeClient.update()) {
+  while(!timeClient.update() && tries < 5) {
     timeClient.forceUpdate();
-    Serial.println("time updated");
+    Serial.println("TIME | UPDATED");
+    tries++;
   } 
   // get unix time and sets it into Time.h for timekeeping
   setTime(timeClient.getEpochTime());
@@ -701,7 +703,6 @@ void startEndNextionCommand(){
 }
 
 void displayTime(){
-  Serial.print("Hours is: "); Serial.println(hour());
   String command;
   // in "" is mode with zeroes
   startEndNextionCommand();
@@ -747,12 +748,12 @@ void loop(){
   //delay(1000);
   // TODO: update only some iterations
   if(interationCounter % 1000 == 0 ){
+    Serial.println("LOOP | COUNTER HIT");
     updateTime(); 
-    delay(50);
-    Serial.println("Updating weather");
+    delay(400);
     weather.update();
     interationCounter = 0;    
-    pingEachSesnorUnit();     // pig units
+    pingEachSesnorUnit();
   }
   //if (ethConnected) {
   //  Serial.println("Connecting to duckduckgo");
@@ -767,6 +768,6 @@ void loop(){
 
   water.updateDataOnNextion();
   //sendData(WATER);
-  removeUnactiveUnits();
+  //removeUnactiveUnits();
   interationCounter++;
 }

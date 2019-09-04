@@ -6,8 +6,11 @@
 + check comparing mac addresse
 + if you can compare only with == or need to compare each var in addr, should work == for empty
 
-+ add delete master to sensor unit
-	+ in case connection is lost and master losses its connection
++ add new array that will store data when peer was added to untyped peers, go trought them and remove unactive
+
+
++ 190 - name request
++ 88 	- ping
 
 
 /interface ethernet poe set ether4 poe-out=off

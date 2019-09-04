@@ -233,7 +233,6 @@ class Weather{
           }
           Serial.println("WEATHER | GOT CONNECTION");
           // We now create a URI for the request
-          // replace with yours APPID
           String latStr = String(lat, 5);
           String lonStr = String(lon, 5);
           String url = "/data/2.5/weather?lat="+latStr+"&lon="+lonStr+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
@@ -250,64 +249,52 @@ class Weather{
             return false;
             }
           }
-          int i = 1;
           // Read all the lines of the reply from server
           Serial.println("WEATHER | GETTING DATA FORM SERVER");
           while(client.available()) { // doesn't work
             result = client.readStringUntil('\r');
             //Serial.println("WEATHER | GOT DATA");
-            Serial.println(i);
-            i++;
           }
+          
+          //String result = "{\"coord\":{\"lon\":14.4,\"lat\":50.16},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01d\"}],\"base\":\"stations\",\"main\":{\"temp\":295.02,\"pressure\":1023,\"humidity\":35,\"temp_min\":293.71,\"temp_max\":296.48},\"visibility\":10000,\"wind\":{\"speed\":2.6,\"deg\":280},\"clouds\":{\"all\":0},\"dt\":1567523276,\"sys\":{\"type\":1,\"id\":6848,\"message\":0.0082,\"country\":\"CZ\",\"sunrise\":1567484380,\"sunset\":1567532676},\"timezone\":7200,\"id\":3066636,\"name\":\"Roztoky\",\"cod\":200}";
           Serial.println(result);
           Serial.println("WEATHER | GOT DATA");
-          // work till here
           // remove notation for array
           result.replace('[', ' ');
           result.replace(']', ' ');
-          Serial.println("WEATHER | REPLACED DATA");
-
-          char jsonArray [result.length()+1];
-          result.toCharArray(jsonArray,sizeof(jsonArray));
-          jsonArray[result.length() + 1] = '\0';
           
-          Serial.println("WEATHER | ARRAY CREATED");
           StaticJsonDocument<1024> jsonDoc;
-          // check if it works
-          //DeserializationError err = deserializeJson(jsonDoc, jsonArray);
           DeserializationError err = deserializeJson(jsonDoc, result);
+          
           if (err != DeserializationError::Ok ){ // seems to work
             Serial.println("parseObject() failed");
             return false; 
-          }
-          //JsonObject root = jsonDoc.as<JsonObject>(); // does it work ??????
+          }  
           Serial.println("WEATHER | JSON CREATED");
-          // const char* is so obstructed in JsonObject that you need conversion to const char* to convert it to string
-          //const char* test = jsonDoc["sys"]["name"];
-          const char* test = jsonDoc["main"]["temp"]; // is empty
-          Serial.print("Test value is: ")
-          Serial.println(test);
-          delay(10);
+          
+          // need to use as<String>() syntex otherwise throws error, not sure why
+          // error message:  ambiguous overload for 'operator=' (operand types are 'String' and 'ArduinoJson6114_000001::enable_if<true, ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*> >::type {aka ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*>}')
+          // const char* val = jsonDoc["name"]; 
+          
+          location = jsonDoc["name"].as<String>(); // is empty
+          temperature = jsonDoc["main"]["temp"].as<String>();
+          weather = jsonDoc["weather"]["main"].as<String>();
+          description = jsonDoc["weather"]["description"].as<String>();
+          temperatureMax = jsonDoc["main"]["temp_max"].as<String>();
+          temperatureMin = jsonDoc["main"]["temp_min"].as<String>();
           Serial.println("WEATHER | FILLED STRINGS");
-          //temperature = String((const char*)root["list"]["main"]["temp"]);
-          //weather = String((const char*)root["list"]["weather"]["main"]);
-          //description = String((const char*)root["list"]["weather"]["description"]);
-          //temperatureMax = String((const char*)root["list"]["main"]["temp_max"]);
-          //temperatureMin = String((const char*)root["list"]["main"]["temp_min"]);
-          ///timeS = String((const char*)root["list"]["dt_txt"]);
+          weatherID =  jsonDoc["weather"]["id"].as<int>();
+          windDeg =  jsonDoc["wind"]["deg"].as<int>();
+          windSpeed =  jsonDoc["wind"]["speed"].as<float>();
+          clouds =  jsonDoc["clouds"]["all"].as<int>();
+          setWindDirection();
+          Serial.println("WEATHER | FILLED NUMBERS");
           
-          //weatherID = String((const char*)root["list"]["weather"]["id"]).toInt();
-          //windDeg = String((const char*)root["list"]["wind"]["deg"]).toInt();
-          //windSpeed = String((const char*)root["list"]["wind"]["speed"]).toFloat();
-          //clouds = String((const char*)root["list"]["clouds"]["all"]).toInt();
-          //setWindDirection();
-          Serial.println("WEATHER | CONVERTED TO NUMBERS");
-          
-          Serial.print("\nWeatherID: ");
+          Serial.print("WEATHER | WeatherID: ");
           Serial.println(weatherID);
           // same serial is used for nextion as for debug
           startEndNextionCommand();
-
+          
       }
       // check it, no need to test for speed zero (will be taken care of in sendDatatoNextion())
       void setWindDirection(){
