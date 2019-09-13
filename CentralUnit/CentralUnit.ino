@@ -11,6 +11,7 @@
 #include <WiFiUdp.h>    // for WifiUdp - as argument in timeCliet
 #include <NTPClient.h>  // for syncing time via NTP
 #include <Nextion.h>    // for getting data from nextion display
+#include <Timezone.h>
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -27,11 +28,13 @@ WiFiUDP Udp;
 NTPClient timeClient(Udp);
 WebServer server(80);
 
+TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
+TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
+Timezone CE(CEST, CET);
+
 String formattedDate;
 String dayStamp;
 String timeStamp;
-int timeOffset = 7200;
-
 
 const int slaveTypesNumber = 5;
 // need last one whole array will be inicialized with emtpy sicne you cant go back to default value of enum
@@ -88,22 +91,25 @@ int getIndexOfUntyped(const uint8_t *mac_addr){
         return i;
       }
   }
+  return NULL;
 }
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
-  for(int i; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
+  for(int i = 0; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
     if(type == slaveTypes[i]){
       return espInfo[i];
     }
   }
+  return emptyInfo;
 }
 
 // returns index in SlaveTypes for given type, used in case we want to remove it
 int getIndexInSlaveTypes(SlaveTypes type){
-  for(int i; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
+  for(int i = 0; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
     if(type == slaveTypes[i]){
       return i;
     }
   }
+  return NULL; // TODO: check for colision futher on
 }
 
 // returns SlaveTypes that corresponds with mac_addr in argument (comparing in espInfo)
@@ -113,6 +119,7 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
         return slaveTypes[i];
       }
   }
+  return EMPTY;
 }
 
 // checks if we had already registred MAC in espInfo
@@ -139,7 +146,7 @@ boolean checkIfTwoAddressesAreSame(uint8_t addr1[], uint8_t addr2[]){
 }
 
 // adds new entry into slaveTypes and espInfo, used after unit send its type
-boolean addNewSlaveToArray(int index, uint8_t type){
+void addNewSlaveToArray(int index, uint8_t type){
   Serial.print("Index is untyped: "); Serial.println(index);
   for(int i = 0; i < slaveTypesNumber; i++){
     if(slaveTypes[i] == EMPTY){
@@ -288,6 +295,10 @@ void initESPNow() {
   }
 }
 
+//void adujistNumberIfTimeOverFlowed(int toBeAdjusted){
+//  return ULONG_MAX - toBeAdjusted + millis();
+//}
+
 // scans network, finds all ESP32 unit
 // after unit is calls AttempToPair() for that unit()
 void ScanForSlave() {
@@ -337,7 +348,7 @@ void ScanForSlave() {
 // If not, than it pairs the unit with master and adds unit to untypedPeers 
 // than will send request for conformation same goes for when unit is paired but we didn't recived any info
 // units aren't (for now) removed from untypedPeers
-bool attempToPair() {
+void attempToPair() {
   Serial.print("Processing: ");
   for (int ii = 0; ii < 6; ++ii ) {
     Serial.print((uint8_t) peerToBePairedWith.peer_addr[ii], HEX);
@@ -382,6 +393,7 @@ bool attempToPair() {
           memcpy(&untypedPeers[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
           i = sizeof(untypedPeers);
           sendDataToGetDeviceInfo(i);
+          break; // exit for loop
         }
         Serial.println();
       }
@@ -483,6 +495,10 @@ void sendData(SlaveTypes type) {
       dataToBeSent = power.getDataToBeSend();
       break;
     }
+    default:{
+      dataToBeSent = 0;
+      break;  
+    }
   }
   esp_err_t result = esp_now_send(getEspInfoForType(type).peer_addr, &dataToBeSent, sizeof(dataToBeSent));
   Serial.print("Send Status: ");
@@ -540,9 +556,11 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         addNewSlaveToArray(i, *data-100);
         untypedPeers[i] = emptyInfo;
         wasUnitAdded = true;
+        break;
       }else{ // we expect right input on first try
         deletePeer(untypedPeers[i]);
         untypedPeers[i] = emptyInfo;
+        break;
       }
     }
   }
@@ -552,28 +570,21 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     bool validMessage = true;
     switch(getSlaveTypeForMAC(mac_addr)){
       case SECURITY:
-        validMessage = heating.updateYourData(data);
-        validMessage ? heating.updateLastTimeRecived() : NULL;
+        if(security.updateYourData(data)) security.updateLastTimeRecived();
         break;
       case WATER:
-        Serial.println("adsadsad");
-        validMessage = water.updateYourData(data);
-        validMessage ? water.updateLastTimeRecived() : NULL;
+        if(water.updateYourData(data)) water.updateLastTimeRecived();
         break;
       case WHEELS:
-        validMessage = wheels.updateYourData(data);
-        validMessage ? heating.updateLastTimeRecived() : NULL;
+        if(wheels.updateYourData(data)) wheels.updateLastTimeRecived();
         break;
       case HEATING:
-        validMessage = heating.updateYourData(data);
-        validMessage ? heating.updateLastTimeRecived() : NULL;
+        if(heating.updateYourData(data)) heating.updateLastTimeRecived();
         break;
       case POWER:
-        validMessage = power.updateYourData(data);
-        validMessage ? heating.updateLastTimeRecived() : NULL;
+        if(power.updateYourData(data)) power.updateLastTimeRecived();
         break;
       default:
-        Serial.print("asa");
         validMessage = false;
         break;
     }
@@ -641,7 +652,7 @@ void setup(){
 
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_STA); // must have for telnet to work
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
   // Init ESPNow with a fallback logic
@@ -656,7 +667,8 @@ void setup(){
         untypedPeers[i].peer_addr[j] = emptyInfo.peer_addr[j];
       }
   }
-  for(int i; i < slaveTypesNumber; i++){
+
+  for(int i = 0; i < slaveTypesNumber; i++){
     slaveTypes[i] = EMPTY;
   }
   /*
@@ -677,6 +689,9 @@ void setup(){
   //weather.update();
 }
 
+// returns one if today is monday
+// add implementaion of time zones
+ 
 
 
 // check if mac exist -> if not no action
@@ -685,7 +700,7 @@ void setup(){
 void updateTime(){
   byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
   Serial.println("TIME | UPDATING");
-  timeClient.setTimeOffset(timeOffset);
+  //timeClient.setTimeOffset(setOffSetForSummerTime());
   while(!timeClient.update() && tries < 5) {
     timeClient.forceUpdate();
     Serial.println("TIME | UPDATED");

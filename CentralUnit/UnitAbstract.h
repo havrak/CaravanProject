@@ -39,7 +39,7 @@ class UnitAbstract {
     long getLastTimeRecived(){
       return lastTimeRecived;  
     };
-    long updateLastTimeRecived(){
+    void updateLastTimeRecived(){
       lastTimeRecived = millis();  
     };
   protected:
@@ -54,4 +54,4 @@ class UnitAbstract {
     bool isEstablishedConnectionToUnit;
 
 };
-#endif UNITABSTRACT_H
+#endif

@@ -91,4 +91,4 @@ class Security : public UnitAbstract{
     };
     Data data;
 };
-#endif SECURITY_H
+#endif

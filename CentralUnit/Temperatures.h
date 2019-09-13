@@ -31,10 +31,10 @@ class Temperatures{
       average = average/(sizeof(temperatures)/sizeof(temperatures[0]));
       
     };
-
+    // TODO: EDIT
     float getAverageOfAirTemp(){
       
-      
+      return 0;
     }
   private:
     void startEndNextionCommand(){
@@ -45,4 +45,4 @@ class Temperatures{
 
 };
 
-#endif TEMPERATURES_H
+#endif

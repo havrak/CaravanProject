@@ -43,8 +43,8 @@ class Heating : public UnitAbstract{
       };
       // calc average of floors temp
       startEndNextionCommand(); 
-      float sum;
-      for(int i; i < (sizeof(data.temperaturesFloor)/sizeof(data.temperaturesFloor[0])); i++){
+      float sum = 0;
+      for(int i = 0; i < (sizeof(data.temperaturesFloor)/sizeof(data.temperaturesFloor[0])); i++){
         sum+= data.temperaturesFloor[i];
       }
       sum = sum/(sizeof(data.temperaturesFloor)/sizeof(data.temperaturesFloor[0]));
@@ -91,4 +91,4 @@ class Heating : public UnitAbstract{
     };
     Data data;
 };
-#endif HEATING_H
+#endif

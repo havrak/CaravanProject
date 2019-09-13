@@ -83,4 +83,4 @@ class Power : public UnitAbstract{
     };
     Data data;
 };
-#endif POWER_H
+#endif

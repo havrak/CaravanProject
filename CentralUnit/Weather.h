@@ -44,8 +44,7 @@ class Weather{
       command = "textWMinMax.txt=\""+temperatureMax+"°C ,"+temperatureMin+"°C\"";
       Serial2.print(command);
       startEndNextionCommand();
-      // check field size
-      command;
+      // TODO: check field size
       if(windSpeed == 0){
         command = "textWWind.txt=\""+windDirection+" ("+String(windSpeed)+"m/s)\"";
       }else{
@@ -294,7 +293,7 @@ class Weather{
           Serial.println(weatherID);
           // same serial is used for nextion as for debug
           startEndNextionCommand();
-          
+          return true;
       }
       // check it, no need to test for speed zero (will be taken care of in sendDatatoNextion())
       void setWindDirection(){
@@ -457,4 +456,4 @@ class Weather{
         startEndNextionCommand();  
       }
 };
-#endif WEATHER_H
+#endif

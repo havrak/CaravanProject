@@ -90,4 +90,4 @@ class Connection{
         Serial2.write(0xff);
       }
 };
-#endif CONNECTION_H
+#endif
