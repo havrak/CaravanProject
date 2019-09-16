@@ -15,14 +15,16 @@ class Connection{
     double SignalStrenght;
     
     Connection(){
-      mikrotikIP = IPAddress(10,18,11,240);
+      mikrotikIP = IPAddress(192,168,1,4);
       if (client.connect(server, 23)) {
+        Serial.print("connected");
         isTelnetConnectionRunning = true;
       }
     }
     // presses button -> callbacks calls this function -> if it is successfull changes icon on nextion
     bool changeConnection(){
       if(!isTelnetConnectionRunning){
+        Serial.print("connected");
         if (client.connect(server, 23)) {
             isTelnetConnectionRunning = true;
             return false;
@@ -31,8 +33,14 @@ class Connection{
       if(isTelnetConnectionRunning){
         if(didIAuthorized){
           didIAuthorized = true;
+          // calls function for command
+          return true;
+        }else{
+          // authorizes and calls function for commnad
+          return true;
         }
       }
+      return false;  
     }
     // also will change configuration on mikrotik trought telnet
     void updateDataOnNextion(){
@@ -78,7 +86,7 @@ class Connection{
     }
     private: 
       IPAddress mikrotikIP;
-      WiFiClient client;
+      WiFiClient client; // possible this causes the crash
       IPAddress server;
       
       bool isTelnetConnectionRunning = false;

@@ -11,7 +11,7 @@
 #include <WiFiUdp.h>    // for WifiUdp - as argument in timeCliet
 #include <NTPClient.h>  // for syncing time via NTP
 #include <Nextion.h>    // for getting data from nextion display
-#include <Timezone.h>
+//#include <Timezone.h> // NOTE: is possible will not work
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -24,13 +24,13 @@
  
 #define EEPROM_SIZE 1   // define EEPROM size
 
-WiFiUDP Udp;
-NTPClient timeClient(Udp);
-WebServer server(80);
+WiFiUDP Udp;               // worked
+NTPClient timeClient(Udp); // worked
+WebServer server(80);      // worked
 
-TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
-TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
-Timezone CE(CEST, CET);
+//TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
+//TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
+//Timezone CE(CEST, CET);
 
 String formattedDate;
 String dayStamp;
@@ -52,24 +52,10 @@ NexTouch *nex_listen_list[] = {
   &b1,  // Button added
 };
 
-void b1PushCallback(void *ptr){
-  digitalWrite(13, HIGH);  // Turn ON internal LED
-}  // End of press event
+byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
 
-void b1PopCallback(void *ptr){
-  digitalWrite(13, LOW);  // Turn OFF internal LED
-}
-
-Power power;
-Security security;
-Water water;
-Wheels wheels;
-Heating heating;
-Connection connection();
-Temperatures temperatures;
-Weather weather(0,0);
-
-
+static bool ethConnected = false;
+const short callsign = 999;
 
 // millisResetsAfter50Day that would make it impossible (for a while) to remove unactiveChips
 long millisOfLastDataRecv;
@@ -84,6 +70,28 @@ esp_now_peer_info_t peerToBePairedWith; // wont be neccesseary here
 
 esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my confort, of course memcpy with 0 would work to
 
+Power power;
+Security security;
+Water water;
+Wheels wheels;
+Heating heating;
+Connection connection;     // unsafe
+Temperatures temperatures;
+Weather weather(0,0);
+
+void b1PushCallback(void *ptr){
+  digitalWrite(13, HIGH);  // Turn ON internal LED
+}  // End of press event
+
+void b1PopCallback(void *ptr){
+  digitalWrite(13, LOW);  // Turn OFF internal LED
+}
+
+
+
+
+
+
 // does this work
 int getIndexOfUntyped(const uint8_t *mac_addr){
   for(int i; i< (sizeof(untypedPeers)/sizeof(untypedPeers[0])); i++){
@@ -91,7 +99,7 @@ int getIndexOfUntyped(const uint8_t *mac_addr){
         return i;
       }
   }
-  return NULL;
+  return -1; // TODO: check for colision futher on
 }
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
   for(int i = 0; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
@@ -109,7 +117,7 @@ int getIndexInSlaveTypes(SlaveTypes type){
       return i;
     }
   }
-  return NULL; // TODO: check for colision futher on
+  return -1; // TODO: check for colision futher on
 }
 
 // returns SlaveTypes that corresponds with mac_addr in argument (comparing in espInfo)
@@ -134,12 +142,12 @@ bool doesntContainMac(uint8_t addr[]){
 }
 
 // checks if two addresses are same
-boolean checkIfTwoAddressesAreSame(uint8_t addr1[], uint8_t addr2[]){
+boolean checkIfTwoAddressesAreSame(uint8_t *addr1, uint8_t *addr2){
   if(sizeof(addr1) != sizeof(addr2)){
     Serial.println("diffrent size");
     return false;
   }
-  for(int i = 0; i < sizeof(addr1); i++){
+  for(int i = 0; i < (sizeof(addr1)/sizeof(addr1[0])); i++){
     if(addr1[i] != addr2[i]) return false;
   }
   return true;
@@ -198,12 +206,6 @@ void printAddress(uint8_t addr[]){
     if (i != 5) Serial.print(":");
   }
 }
-
-// IMPLEMENT
-byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
-
-static bool ethConnected = false;
-const short callsign = 999;
 
 // root of server running on Olimex
 void handleRoot() {
@@ -597,7 +599,6 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   }
 }
 
-
 // remove unit that is fully set up
 void removeUnit(SlaveTypes type){
  deletePeer(getEspInfoForType(type));
@@ -645,23 +646,26 @@ void removeUnactiveUnits(){
 void setup(){
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
-  //Serial2.send("baud=115200");
-  //startEndNextionCommand();
-  //Serial2.end();  // End the serial comunication of baud=9600
-  //Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
+  Serial2.print("baud=115200");
+  startEndNextionCommand();
+  Serial2.end();  // End the serial comunication of baud=9600
+  Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
 
   WiFi.onEvent(WiFiEvent);
   ETH.begin();
   WiFi.mode(WIFI_STA); // must have for telnet to work
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
+  
+  Serial.println("SETUP | NETWORKING");
   // Init ESPNow with a fallback logic
   initESPNow();
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
   esp_now_register_send_cb(onDataSent);
   esp_now_register_recv_cb(onDataRecv);
-
+  
+  Serial.println("SETUP | ESP32");
   for(int i = 0; i< 20; i++){
     for(int j = 0; i <6; i++){
         untypedPeers[i].peer_addr[j] = emptyInfo.peer_addr[j];
@@ -671,6 +675,8 @@ void setup(){
   for(int i = 0; i < slaveTypesNumber; i++){
     slaveTypes[i] = EMPTY;
   }
+  
+  Serial.println("SETUP | PREPARED ARRAYS");
   /*
   server.on("/", handleRoot);
   server.on("/inline", []() {
@@ -680,13 +686,12 @@ void setup(){
   server.begin();
   Serial.println("Server started");
   */
-  WiFiClient client;
   
-
+  //timeClient.begin();
+  //updateTime();
   
-  timeClient.begin();
-  updateTime();
   //weather.update();
+  Serial.println("SETUP | FINISHED");
 }
 
 // returns one if today is monday
@@ -711,6 +716,7 @@ void updateTime(){
   formattedDate = timeClient.getFormattedDate();
   Serial.println(formattedDate);
 }
+
 void startEndNextionCommand(){
   Serial.write(0xff);
   Serial.write(0xff);
@@ -739,50 +745,53 @@ void displayTime(){
   startEndNextionCommand(); 
 }
 
+// for now ignore errors
 void pingEachSesnorUnit(){
   uint8_t data = 88;
   if(security.getEstablishedConnection()){
-    esp_err_t result = esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
+    esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
   }
   if(water.getEstablishedConnection()){
-    esp_err_t result = esp_now_send(getEspInfoForType(WATER).peer_addr, &data, sizeof(data));
+    esp_now_send(getEspInfoForType(WATER).peer_addr, &data, sizeof(data));
   }
   if(wheels.getEstablishedConnection()){
-    esp_err_t result = esp_now_send(getEspInfoForType(WHEELS).peer_addr, &data, sizeof(data));
+    esp_now_send(getEspInfoForType(WHEELS).peer_addr, &data, sizeof(data));
   }
   if(heating.getEstablishedConnection()){
-    esp_err_t result = esp_now_send(getEspInfoForType(HEATING).peer_addr, &data, sizeof(data));
+    esp_now_send(getEspInfoForType(HEATING).peer_addr, &data, sizeof(data));
   }
   if(power.getEstablishedConnection()){
-    esp_err_t result = esp_now_send(getEspInfoForType(POWER).peer_addr, &data, sizeof(data));
+    esp_now_send(getEspInfoForType(POWER).peer_addr, &data, sizeof(data));
   }
 }
 
 int interationCounter = 0;
 void loop(){
-  //delay(1000);
+  delay(1000);
   // TODO: update only some iterations
-  if(interationCounter % 1000 == 0 ){
+  /*
+  if(interationCounter == 0 ){
     Serial.println("LOOP | COUNTER HIT");
     updateTime(); 
     delay(400);
     weather.update();
-    interationCounter = 0;    
+    interationCounter = 1000;    
     pingEachSesnorUnit();
   }
+  */
   //if (ethConnected) {
   //  Serial.println("Connecting to duckduckgo");
   //  testClient("duckduckgo.com", 80);
   //  server.handleClient();
   //}
+  connection.changeConnection();
+  //displayTime();
+  //ScanForSlave();
   
-  displayTime();
-  ScanForSlave();
-  
-  weather.updateDataOnNextion(9);
+  //weather.updateDataOnNextion(9);
 
-  water.updateDataOnNextion();
+  //water.updateDataOnNextion();
   //sendData(WATER);
   //removeUnactiveUnits();
-  interationCounter++;
+  interationCounter--;
 }

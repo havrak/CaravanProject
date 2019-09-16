@@ -184,7 +184,7 @@ class Weather{
     private:
       WiFiClient client;
       // for some reason IP cannot be created here and needs to be passed from main
-      char* servername ="api.openweathermap.org";  // remote server we will connect to
+      const char* servername ="api.openweathermap.org";  // remote server we will connect to
       String result;
       float lat;
       float lon;
@@ -237,7 +237,7 @@ class Weather{
           String url = "/data/2.5/weather?lat="+latStr+"&lon="+lonStr+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
           // This will send the request to the server
           client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-            "Host: " + servername + "\r\n" +
+            "Host: " + String(servername) + "\r\n" +
             "Connection: close\r\n\r\n");
           unsigned long timeout = millis();
           // "wait" if client is not available

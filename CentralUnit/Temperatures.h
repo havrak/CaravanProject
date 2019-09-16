@@ -9,7 +9,7 @@
 // first portion of structure are data from unit, second is configuration (seperated by space)
 class Temperatures{
   public:
-    float temperatures[];
+    float temperatures[6];
     float average;
     
     Temperatures(){
