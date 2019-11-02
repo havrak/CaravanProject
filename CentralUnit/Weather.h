@@ -25,9 +25,9 @@ class Weather{
   public:
     
     Weather(float newLat, float newLon){
-      getWeather();
       lat = newLat;
       lon = newLon;
+      getWeather();
     }
 
     void setNewPosition(float newLat, float newLon){

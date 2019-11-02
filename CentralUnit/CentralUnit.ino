@@ -11,7 +11,7 @@
 #include <WiFiUdp.h>    // for WifiUdp - as argument in timeCliet
 #include <NTPClient.h>  // for syncing time via NTP
 #include <Nextion.h>    // for getting data from nextion display
-//#include <Timezone.h> // NOTE: is possible will not work
+#include <Timezone.h>   // for keeping track of timezones and summer time
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -24,15 +24,16 @@
  
 #define EEPROM_SIZE 1   // define EEPROM size
 
-WiFiUDP Udp;               // worked
-NTPClient timeClient(Udp); // worked
 WebServer server(80);      // worked
 
-//TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
-//TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
-//Timezone CE(CEST, CET);
+WiFiUDP Udp;               // worked
+NTPClient timeClient(Udp); // worked
 
-String formattedDate;
+TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
+TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
+Timezone CE(CEST, CET);
+
+String formattedTime;
 String dayStamp;
 String timeStamp;
 
@@ -46,7 +47,7 @@ enum SlaveTypes{
 // array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
 bool updateLocks[slaveTypesNumber];
 
-//NextionObject nextionObject;
+//Nextion on screen interactive items
 NexButton b1 = NexButton(0, 9, "b1");  // Button added
 NexTouch *nex_listen_list[] = {
   &b1,  // Button added
@@ -55,7 +56,6 @@ NexTouch *nex_listen_list[] = {
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
 
 static bool ethConnected = false;
-const short callsign = 999;
 
 // millisResetsAfter50Day that would make it impossible (for a while) to remove unactiveChips
 long millisOfLastDataRecv;
@@ -75,7 +75,7 @@ Security security;
 Water water;
 Wheels wheels;
 Heating heating;
-Connection connection;     // unsafe
+Connection connection;     // unsafe, crashes whole unit
 Temperatures temperatures;
 Weather weather(0,0);
 
@@ -87,12 +87,15 @@ void b1PopCallback(void *ptr){
   digitalWrite(13, LOW);  // Turn OFF internal LED
 }
 
+// end nextion command, also starts in case something was in serial line
+void startEndNextionCommand(){
+  Serial.write(0xff);
+  Serial.write(0xff);
+  Serial.write(0xff);
+}
 
-
-
-
-
-// does this work
+// Cloud cause problems
+// returns index of mac_addr in untypedPeers, return -1 if mac was not found
 int getIndexOfUntyped(const uint8_t *mac_addr){
   for(int i; i< (sizeof(untypedPeers)/sizeof(untypedPeers[0])); i++){
     if(*mac_addr == *untypedPeers[i].peer_addr){
@@ -101,6 +104,8 @@ int getIndexOfUntyped(const uint8_t *mac_addr){
   }
   return -1; // TODO: check for colision futher on
 }
+
+// returns esp info that corresponds with given type (must be in arrays)
 esp_now_peer_info_t getEspInfoForType(SlaveTypes type){
   for(int i = 0; i < (sizeof(slaveTypes)/sizeof(slaveTypes[0])); i++){
     if(type == slaveTypes[i]){
@@ -164,7 +169,7 @@ void addNewSlaveToArray(int index, uint8_t type){
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith)); // copies data to array
           Serial.println("Added SECURITY ESP32");
           security.setEstablishedConnection(true);
-          i = slaveTypesNumber; // just exit for loop
+          i = slaveTypesNumber;
           break;
         case 2:
           slaveTypes[i] = WATER;
@@ -212,7 +217,7 @@ void handleRoot() {
   server.send(200, "text/plain", "hello from esp32!");
 }
 
-
+// callback for WiFi on handle not found
 void handleNotFound() {
   String message = "File Not Found\n\n";
   message += "URI: ";
@@ -297,9 +302,10 @@ void initESPNow() {
   }
 }
 
-//void adujistNumberIfTimeOverFlowed(int toBeAdjusted){
-//  return ULONG_MAX - toBeAdjusted + millis();
-//}
+// adjust number in case millis overflow happend 
+long adujistNumberIfTimeOverFlowed(long toBeAdjusted){
+  return ULONG_MAX - toBeAdjusted + millis();
+}
 
 // scans network, finds all ESP32 unit
 // after unit is calls AttempToPair() for that unit()
@@ -431,6 +437,7 @@ void attempToPair() {
     delay(100);
   }
 }
+
 // send 190 towards unit, index refers to index of unit in untypedPeers
 void sendDataToGetDeviceInfo(int index){
   Serial.println("Sending data to get info");
@@ -643,6 +650,70 @@ void removeUnactiveUnits(){
   }
 }
 
+// pings each unit with number 88, units that way known that central is pressent
+// they do not operate on callback when data is send succesfully
+// for now ignore errors
+void pingEachSesnorUnit(){
+  uint8_t data = 88;
+  if(security.getEstablishedConnection()){
+    esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
+  }
+  if(water.getEstablishedConnection()){
+    esp_now_send(getEspInfoForType(WATER).peer_addr, &data, sizeof(data));
+  }
+  if(wheels.getEstablishedConnection()){
+    esp_now_send(getEspInfoForType(WHEELS).peer_addr, &data, sizeof(data));
+  }
+  if(heating.getEstablishedConnection()){
+    esp_now_send(getEspInfoForType(HEATING).peer_addr, &data, sizeof(data));
+  }
+  if(power.getEstablishedConnection()){
+    esp_now_send(getEspInfoForType(POWER).peer_addr, &data, sizeof(data));
+  }
+}
+
+// Maybe could be moved to its own class
+
+// updates time via NTP cilent
+void updateTime(){
+  byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
+  Serial.println("TIME | UPDATING");
+  //timeClient.setTimeOffset(setOffSetForSummerTime());
+  while(!timeClient.update() && tries < 5) {
+    timeClient.forceUpdate();
+    Serial.println("TIME | UPDATED");
+    tries++;
+  } 
+  // get unix time and sets it into Time.h for timekeeping
+  setTime(timeClient.getEpochTime());
+  formattedTime = timeClient.getFormattedTime();
+  Serial.println(formattedTime);
+}
+
+// displys time on nextion
+void displayTime(){
+  String command;
+  // in "" is mode with zeroes
+  startEndNextionCommand();
+  //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
+  command = "textHours.txt=\""+String(hour())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  //command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
+  command = "textAccuracy.txt=\""+String(minute())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  //command = day() < 10 ? "textAccuracy.txt=\"0"+String(day())+"\"" : "textAccuracy.txt=\""+String(day())+"\"";
+  command = "textAccuracy.txt=\""+String(day())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  //command = month() < 10 ? "textAccuracy.txt=\"0"+String(month())+"\"" : "textAccuracy.txt=\""+String(month())+"\"";
+  command = "textAccuracy.txt=\""+String(month())+"\"";
+  Serial2.print(command);
+  startEndNextionCommand(); 
+}
+
+
 void setup(){
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
@@ -692,77 +763,6 @@ void setup(){
   
   //weather.update();
   Serial.println("SETUP | FINISHED");
-}
-
-// returns one if today is monday
-// add implementaion of time zones
- 
-
-
-// check if mac exist -> if not no action
-// check lastTimeRecived
-
-void updateTime(){
-  byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
-  Serial.println("TIME | UPDATING");
-  //timeClient.setTimeOffset(setOffSetForSummerTime());
-  while(!timeClient.update() && tries < 5) {
-    timeClient.forceUpdate();
-    Serial.println("TIME | UPDATED");
-    tries++;
-  } 
-  // get unix time and sets it into Time.h for timekeeping
-  setTime(timeClient.getEpochTime());
-  formattedDate = timeClient.getFormattedDate();
-  Serial.println(formattedDate);
-}
-
-void startEndNextionCommand(){
-  Serial.write(0xff);
-  Serial.write(0xff);
-  Serial.write(0xff);
-}
-
-void displayTime(){
-  String command;
-  // in "" is mode with zeroes
-  startEndNextionCommand();
-  //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
-  command = "textHours.txt=\""+String(hour())+"\"";
-  Serial2.print(command);
-  startEndNextionCommand();
-  //command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
-  command = "textAccuracy.txt=\""+String(minute())+"\"";
-  Serial2.print(command);
-  startEndNextionCommand();
-  //command = day() < 10 ? "textAccuracy.txt=\"0"+String(day())+"\"" : "textAccuracy.txt=\""+String(day())+"\"";
-  command = "textAccuracy.txt=\""+String(day())+"\"";
-  Serial2.print(command);
-  startEndNextionCommand();
-  //command = month() < 10 ? "textAccuracy.txt=\"0"+String(month())+"\"" : "textAccuracy.txt=\""+String(month())+"\"";
-  command = "textAccuracy.txt=\""+String(month())+"\"";
-  Serial2.print(command);
-  startEndNextionCommand(); 
-}
-
-// for now ignore errors
-void pingEachSesnorUnit(){
-  uint8_t data = 88;
-  if(security.getEstablishedConnection()){
-    esp_now_send(getEspInfoForType(SECURITY).peer_addr, &data, sizeof(data));
-  }
-  if(water.getEstablishedConnection()){
-    esp_now_send(getEspInfoForType(WATER).peer_addr, &data, sizeof(data));
-  }
-  if(wheels.getEstablishedConnection()){
-    esp_now_send(getEspInfoForType(WHEELS).peer_addr, &data, sizeof(data));
-  }
-  if(heating.getEstablishedConnection()){
-    esp_now_send(getEspInfoForType(HEATING).peer_addr, &data, sizeof(data));
-  }
-  if(power.getEstablishedConnection()){
-    esp_now_send(getEspInfoForType(POWER).peer_addr, &data, sizeof(data));
-  }
 }
 
 int interationCounter = 0;
