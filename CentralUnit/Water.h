@@ -89,6 +89,7 @@ class Water : public UnitAbstract{
       byte validityOfData;
       float litersRemaining;
       float temperature;
+      bool heating;
     };
     Data data;
    

@@ -16,10 +16,10 @@ class Connection{
     
     Connection(){
       mikrotikIP = IPAddress(192,168,1,4);
-      if (client.connect(server, 23)) {
-        Serial.print("connected");
-        isTelnetConnectionRunning = true;
-      }
+      //if (client.connect(server, 23)) { // cant connect here
+      //  Serial.print("connected");
+      //  isTelnetConnectionRunning = true;
+      //}
     }
     // presses button -> callbacks calls this function -> if it is successfull changes icon on nextion
     bool changeConnection(){

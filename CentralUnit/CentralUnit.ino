@@ -12,6 +12,8 @@
 #include <NTPClient.h>  // for syncing time via NTP
 #include <Nextion.h>    // for getting data from nextion display
 #include <Timezone.h>   // for keeping track of timezones and summer time
+#include <M5Stack.h>
+#include "Free_Fonts.h"
 #include "Water.h"
 #include "Heating.h"
 #include "Power.h"
@@ -21,7 +23,6 @@
 #include "Connection.h"
 #include "Temperatures.h"
 #include "Weather.h"
- 
 #define EEPROM_SIZE 1   // define EEPROM size
 
 WebServer server(80);      // worked
@@ -769,7 +770,7 @@ int interationCounter = 0;
 void loop(){
   delay(1000);
   // TODO: update only some iterations
-  /*
+  
   if(interationCounter == 0 ){
     Serial.println("LOOP | COUNTER HIT");
     updateTime(); 
@@ -778,17 +779,17 @@ void loop(){
     interationCounter = 1000;    
     pingEachSesnorUnit();
   }
-  */
+  
   //if (ethConnected) {
   //  Serial.println("Connecting to duckduckgo");
   //  testClient("duckduckgo.com", 80);
   //  server.handleClient();
   //}
-  connection.changeConnection();
-  //displayTime();
-  //ScanForSlave();
+  //connection.changeConnection();
+  displayTime();
+  ScanForSlave();
   
-  //weather.updateDataOnNextion(9);
+  weather.updateDataOnNextion(9);
 
   //water.updateDataOnNextion();
   //sendData(WATER);
