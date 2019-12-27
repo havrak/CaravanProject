@@ -116,9 +116,9 @@ void b1PopCallback(void *ptr){
 
 // end nextion command, also starts in case something was in serial line
 void startEndNextionCommand(){
-  Serial.write(0xff);
-  Serial.write(0xff);
-  Serial.write(0xff);
+  Serial2.write(0xff);
+  Serial2.write(0xff);
+  Serial2.write(0xff);
 }
 
 // Cloud cause problems
@@ -729,36 +729,38 @@ void updateTime(){
 
 // displys time on nextion
 void displayTime(){
+  Serial.println("Dispaling time");
   String command;
-  // in "" is mode with zeroes
+  // in / is mode with zeroes
   startEndNextionCommand();
   //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
   command = "textHours.txt=\""+String(hour())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
   //command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
-  command = "textAccuracy.txt=\""+String(minute())+"\"";
+  command = "textMinutes.txt=\""+String(minute())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
   //command = day() < 10 ? "textAccuracy.txt=\"0"+String(day())+"\"" : "textAccuracy.txt=\""+String(day())+"\"";
-  command = "textAccuracy.txt=\""+String(day())+"\"";
+  command = "textDay.txt=\""+String(day())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
   //command = month() < 10 ? "textAccuracy.txt=\"0"+String(month())+"\"" : "textAccuracy.txt=\""+String(month())+"\"";
-  command = "textAccuracy.txt=\""+String(month())+"\"";
+  command = "textMonth.txt=\""+String(month())+"\"";
   Serial2.print(command);
   startEndNextionCommand(); 
 }
 
-
+//HardwareSerial ss(2);
 void setup(){
-  Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1,16,17);
-  Serial2.print("baud=115200");
-  startEndNextionCommand();
-  Serial2.end();  // End the serial comunication of baud=9600
-  Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
   M5.begin(true, false, true);
+  Serial.begin(115200);
+  //ss.begin(9600);
+  Serial2.begin(9600, SERIAL_8N1,16,17);
+  //Serial2.print("baud=115200");
+  //startEndNextionCommand();
+  //Serial2.end();  // End the serial comunication of baud=9600
+  //Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
   while (!Serial);
 //  WiFi.onEvent(WiFiEvent);
 //  ETH.begin();
@@ -820,23 +822,31 @@ void loop(){
     Serial.println("LOOP | COUNTER HIT");
     updateTime(); 
     delay(400);
-    //weather.update();
+    weather.update();
     interationCounter = 1000;    
-    pingEachSesnorUnit();
+    //pingEachSesnorUnit();
   }
-  
-  if (false)/*(ethConnected)*/ {
-    Serial.println("Connecting to duckduckgo");
-    testClient("google.com", 80);
-    server.handleClient();
-  }
+
   //connection.changeConnection();
   displayTime();
-  ScanForSlave();
+  weather.updateDataOnNextion(hour());
   
-  weather.updateDataOnNextion(9);
+  ScanForSlave();
 
-  //water.updateDataOnNextion();
+  //startEndNextionCommand();
+  //command = month() < 10 ? "textAccuracy.txt=\"0"+String(month())+"\"" : "textAccuracy.txt=\""+String(month())+"\"";
+  //startEndNextionCommand(); 
+  
+  char incomingByte = 0; // for incoming serial data
+  if (Serial2.available() > 0) {
+    // read the incoming byte:
+    incomingByte = Serial2.read();
+    // say what you got:
+    Serial.print("I received: ");
+    Serial.println(char(incomingByte));
+  }
+
+  
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;
