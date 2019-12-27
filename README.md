@@ -6,9 +6,11 @@ Point of project is to automatized certain tasks in caravan like controlling hea
 More info will be added, including which components are used.
 
 ## libaries used
-+ NTPClient
-+ espsoftwareserial (https://github.com/jdollar/espsoftwareserial/)
++ NTPClient (https://github.com/taranais/NTPClient)
 + ITEADLIB_Arduino_Nextion (https://github.com/itead/ITEADLIB_Arduino_Nextion)
+	+ Requies: espsoftwareserial (https://github.com/plerup/espsoftwareserial)
 + Time (https://github.com/PaulStoffregen/Time)
 + ArduinoJson (https://github.com/bblanchon/ArduinoJson)
-
++ Timezone (https://github.com/JChristensen/Timezone)
++ Arduino-Telnet-Client (https://github.com/havrak/Arduino-Telnet-Client)
++ Arduino (https://github.com/esp8266/Arduino/tree/master/doc)

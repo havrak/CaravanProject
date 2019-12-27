@@ -2,9 +2,10 @@
     Code for central unit, runs on OLIMEX Gateway
 */
 
-#include <ETH.h>        // for ethernet to work
+//#include <ETH.h>        // for ethernet to work
 #include <esp_now.h>    // for enabling ESP NOW wich is used to communicate with units
-#include <WiFi.h>       // for running ethernet interface
+#include <WiFi.h>       // for ESP NOW
+#include <SPI.h>        // for ethernet
 #include <WebServer.h>  // for running webserver on Olimex
 #include <EEPROM.h>     // for writing data into EEPROM (probably wont be used here)
 #include <Time.h>       // for timekeeping
@@ -13,6 +14,9 @@
 #include <Nextion.h>    // for getting data from nextion display
 #include <Timezone.h>   // for keeping track of timezones and summer time
 #include <M5Stack.h>
+#include <Ethernet2.h>
+#include <EthernetUdp2.h>
+
 #include "Free_Fonts.h"
 #include "Water.h"
 #include "Heating.h"
@@ -23,12 +27,28 @@
 #include "Connection.h"
 #include "Temperatures.h"
 #include "Weather.h"
+
 #define EEPROM_SIZE 1   // define EEPROM size
+#define SCK 18
+#define MISO 19
+#define MOSI 23
+#define CS 26
+
+//01 05 00 01 02 00 9d 6a
+char uart_buffer[8] = {0x01, 0x05, 0x00, 0x01, 0x02, 0x00, 0x9d, 0x6a};
+char uart_rx_buffer[8] = {0};
+ 
+char Num = 0;
+char stringnum = 0;
+unsigned long W5500DataNum = 0;
+unsigned long Send_Num_Ok = 0;
+unsigned long Rec_num = 0;
+unsigned long Rec_Num_Ok = 0;
 
 WebServer server(80);      // worked
 
-WiFiUDP Udp;               // worked
-NTPClient timeClient(Udp); // worked
+EthernetUDP Udp;               // worked
+NTPClient timeClient(Udp, "europe.pool.ntp.org", 3600); // worked
 
 TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
 TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
@@ -37,8 +57,14 @@ Timezone CE(CEST, CET);
 String formattedTime;
 String dayStamp;
 String timeStamp;
-
 const int slaveTypesNumber = 5;
+
+byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
+IPAddress nm(255, 255, 255, 0); 
+IPAddress gw(10, 18, 11, 254);
+IPAddress dnsss( 8, 8, 8, 8); 
+IPAddress ip(10, 18, 11, 197);
+
 // need last one whole array will be inicialized with emtpy sicne you cant go back to default value of enum
 enum SlaveTypes{
   SECURITY,WATER,WHEELS,HEATING,POWER,EMPTY
@@ -234,18 +260,20 @@ void handleNotFound() {
   server.send(404, "text/plain", message);
 }
 
+
 // callback for WiFiEvent
+/*
 void WiFiEvent(WiFiEvent_t event){
   switch (event) {
     case SYSTEM_EVENT_ETH_START:
       Serial.println("ETH Started");
       //set eth hostname here
-      ETH.setHostname("esp32-ethernet");
+//      ETH.setHostname("esp32-ethernet");
       break;
     case SYSTEM_EVENT_ETH_CONNECTED:
       Serial.println("ETH Connected");
       break;
-    case SYSTEM_EVENT_ETH_GOT_IP:
+    case SYSTEM_EVENT_ETH__IP:
       Serial.print("ETH MAC: ");
       Serial.print(ETH.macAddress());
       Serial.print(", IPv4: ");
@@ -270,13 +298,13 @@ void WiFiEvent(WiFiEvent_t event){
       break;
   }
 }
-
+*/
 // tests if connection is running (for debug)
 void testClient(const char * host, uint16_t port){
   Serial.print("\nconnecting to ");
   Serial.println(host);
 
-  WiFiClient client;
+  EthernetClient client;
   if (!client.connect(host, port)) {
     Serial.println("connection failed");
     return;
@@ -532,7 +560,7 @@ void sendData(SlaveTypes type) {
 
 // callback for when data is sent from Master to Slave
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 20){ // try until data is send successfully
+  if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 10){ // try until data is send successfully
     noOfAttempts++;
     sendDataToGetDeviceInfo(getIndexOfUntyped(mac_addr));
   }else if(status == ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr ){
@@ -678,17 +706,25 @@ void pingEachSesnorUnit(){
 // updates time via NTP cilent
 void updateTime(){
   byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
+  int   triesTime = millis();
   Serial.println("TIME | UPDATING");
   //timeClient.setTimeOffset(setOffSetForSummerTime());
-  while(!timeClient.update() && tries < 5) {
+  while(!timeClient.update() && tries < 5 && millis() - triesTime < 5000) {
+    if(millis() - triesTime < 0){
+      triesTime = millis();
+    }
     timeClient.forceUpdate();
     Serial.println("TIME | UPDATED");
     tries++;
   } 
   // get unix time and sets it into Time.h for timekeeping
   setTime(timeClient.getEpochTime());
-  formattedTime = timeClient.getFormattedTime();
-  Serial.println(formattedTime);
+  //formattedTime = timeClient.getFormattedTime();
+  Serial.print(hour());
+  Serial.print(":");
+  Serial.print(minute());
+  Serial.print(":");
+  Serial.println(second());
 }
 
 // displys time on nextion
@@ -722,13 +758,14 @@ void setup(){
   startEndNextionCommand();
   Serial2.end();  // End the serial comunication of baud=9600
   Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
-
-  WiFi.onEvent(WiFiEvent);
-  ETH.begin();
+  M5.begin(true, false, true);
+  while (!Serial);
+//  WiFi.onEvent(WiFiEvent);
+//  ETH.begin();
   WiFi.mode(WIFI_STA); // must have for telnet to work
   // This is the mac address of the Master in Station Mode
   Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
-  
+
   Serial.println("SETUP | NETWORKING");
   // Init ESPNow with a fallback logic
   initESPNow();
@@ -736,6 +773,13 @@ void setup(){
   // get the status of Trasnmitted packet
   esp_now_register_send_cb(onDataSent);
   esp_now_register_recv_cb(onDataRecv);
+
+  SPI.begin(SCK, MISO, MOSI, -1);
+  delay(1000);
+  Ethernet.init(CS);
+  delay(1000); 
+  Ethernet.begin(mac, ip, dnsss, gw , nm);
+  Udp.begin(8888);
   
   Serial.println("SETUP | ESP32");
   for(int i = 0; i< 20; i++){
@@ -759,7 +803,7 @@ void setup(){
   Serial.println("Server started");
   */
   
-  //timeClient.begin();
+  timeClient.begin();
   //updateTime();
   
   //weather.update();
@@ -768,23 +812,24 @@ void setup(){
 
 int interationCounter = 0;
 void loop(){
+  
   delay(1000);
   // TODO: update only some iterations
   
-  if(interationCounter == 0 ){
+  if(true){
     Serial.println("LOOP | COUNTER HIT");
     updateTime(); 
     delay(400);
-    weather.update();
+    //weather.update();
     interationCounter = 1000;    
     pingEachSesnorUnit();
   }
   
-  //if (ethConnected) {
-  //  Serial.println("Connecting to duckduckgo");
-  //  testClient("duckduckgo.com", 80);
-  //  server.handleClient();
-  //}
+  if (false)/*(ethConnected)*/ {
+    Serial.println("Connecting to duckduckgo");
+    testClient("google.com", 80);
+    server.handleClient();
+  }
   //connection.changeConnection();
   displayTime();
   ScanForSlave();

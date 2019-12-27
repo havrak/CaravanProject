@@ -15,7 +15,7 @@
 // 5. location
 #ifndef WEATHER_H
 #define WEATHER_H
-#include <WiFi.h>
+#include <Ethernet2.h>
 #include <string>     // std::string, std::to_string
 #include <ArduinoJson.h>    //https://github.com/bblanchon/ArduinoJson
 #include <EEPROM.h>
@@ -27,7 +27,7 @@ class Weather{
     Weather(float newLat, float newLon){
       lat = newLat;
       lon = newLon;
-      getWeather();
+      //update();
     }
 
     void setNewPosition(float newLat, float newLon){
@@ -178,18 +178,91 @@ class Weather{
         default: drawUnknownVaules(); break;
       }
     }
+    
     bool update(){
-      return getWeather();
+      
+      EthernetClient client;
+      Serial.println("WEATHER | UPDATE");
+      String result ="";
+      if (!client.connect(servername, 80)) {
+        Serial.println("Cannot connect to server");
+        return false;
+      }
+      Serial.println("WEATHER | GOT CONNECTION");
+      // We now create a URI for the request
+      String latStr = String(lat, 5);
+      String lonStr = String(lon, 5);
+      String url = "/data/2.5/weather?lat="+latStr+"&lon="+lonStr+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
+      // This will send the request to the server
+      client.print(String("GET ") + url + " HTTP/1.1\r\n" +
+      "Host: " + String(servername) + "\r\n" +
+      "Connection: close\r\n\r\n");
+      unsigned long timeout = millis();
+      // "wait" if client is not available
+      while (client.available() == 0) {
+        if (millis() - timeout < 5000) {
+          if(millis() - timeout < 0) timeout = millis();
+          Serial.println("Client is not yet available");
+          
+        }else{
+          break;  
+          return false;
+        }
+      }
+      // Read all the lines of the reply from server
+      Serial.println("WEATHER | GETTING DATA FORM SERVER");
+      while(client.available()) { // doesn't work
+        result = client.readStringUntil('\r');
+        //Serial.println("WEATHER | GOT DATA");
+      }
+          
+      //String result = "{\"coord\":{\"lon\":14.4,\"lat\":50.16},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01d\"}],\"base\":\"stations\",\"main\":{\"temp\":295.02,\"pressure\":1023,\"humidity\":35,\"temp_min\":293.71,\"temp_max\":296.48},\"visibility\":10000,\"wind\":{\"speed\":2.6,\"deg\":280},\"clouds\":{\"all\":0},\"dt\":1567523276,\"sys\":{\"type\":1,\"id\":6848,\"message\":0.0082,\"country\":\"CZ\",\"sunrise\":1567484380,\"sunset\":1567532676},\"timezone\":7200,\"id\":3066636,\"name\":\"Roztoky\",\"cod\":200}";
+      Serial.println(result);
+      Serial.println("WEATHER | GOT DATA");
+      // remove notation for array
+      result.replace('[', ' ');
+      result.replace(']', ' ');
+          
+      StaticJsonDocument<1024> jsonDoc;
+      DeserializationError err = deserializeJson(jsonDoc, result);
+          
+      if (err != DeserializationError::Ok ){ // seems to work
+        Serial.println("WEATHER | DERSERIZATION FAILED");
+        return false; 
+      }  
+      Serial.println("WEATHER | JSON CREATED");
+          
+      // need to use as<String>() syntex otherwise throws error, not sure why
+      // error message:  ambiguous overload for 'operator=' (operand types are 'String' and 'ArduinoJson6114_000001::enable_if<true, ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*> >::type {aka ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*>}')
+      // const char* val = jsonDoc["name"]; 
+          
+      location = jsonDoc["name"].as<String>(); // is empty
+      temperature = jsonDoc["main"]["temp"].as<String>();
+      weather = jsonDoc["weather"]["main"].as<String>();
+      description = jsonDoc["weather"]["description"].as<String>();
+      temperatureMax = jsonDoc["main"]["temp_max"].as<String>();
+      temperatureMin = jsonDoc["main"]["temp_min"].as<String>();
+      Serial.println("WEATHER | FILLED STRINGS");
+      weatherID =  jsonDoc["weather"]["id"].as<int>();
+      windDeg =  jsonDoc["wind"]["deg"].as<int>();
+      windSpeed =  jsonDoc["wind"]["speed"].as<float>();
+      clouds =  jsonDoc["clouds"]["all"].as<int>();
+      setWindDirection();
+      Serial.println("WEATHER | FILLED NUMBERS");
+          
+      Serial.print("WEATHER | WeatherID: ");
+      Serial.println(weatherID);
+      // same serial is used for nextion as for debug
+      startEndNextionCommand();
+      return true;
     }
+    
     private:
-      WiFiClient client;
       // for some reason IP cannot be created here and needs to be passed from main
       const char* servername ="api.openweathermap.org";  // remote server we will connect to
       String result;
       float lat;
       float lon;
-      
-
       
       // weather info
       int weatherID;
@@ -221,80 +294,6 @@ class Weather{
         Serial2.write(0xff);
       }
 
-
-      bool getWeather(){
-          Serial.println("WEATHER | UPDATE");
-          String result ="";
-          const int httpPort = 80;
-          if (!client.connect(servername, httpPort)) {
-            Serial.println("Cannot connect to server");
-            return false;
-          }
-          Serial.println("WEATHER | GOT CONNECTION");
-          // We now create a URI for the request
-          String latStr = String(lat, 5);
-          String lonStr = String(lon, 5);
-          String url = "/data/2.5/weather?lat="+latStr+"&lon="+lonStr+"&units=metric&cnt=1&lang=cz&APPID=fabd54dece7005a11d0cd555f2384df9";
-          // This will send the request to the server
-          client.print(String("GET ") + url + " HTTP/1.1\r\n" +
-            "Host: " + String(servername) + "\r\n" +
-            "Connection: close\r\n\r\n");
-          unsigned long timeout = millis();
-          // "wait" if client is not available
-          while (client.available() == 0) {
-            if (millis() - timeout > 5000) {
-            client.stop();
-            Serial.println("Client is not available");
-            return false;
-            }
-          }
-          // Read all the lines of the reply from server
-          Serial.println("WEATHER | GETTING DATA FORM SERVER");
-          while(client.available()) { // doesn't work
-            result = client.readStringUntil('\r');
-            //Serial.println("WEATHER | GOT DATA");
-          }
-          
-          //String result = "{\"coord\":{\"lon\":14.4,\"lat\":50.16},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01d\"}],\"base\":\"stations\",\"main\":{\"temp\":295.02,\"pressure\":1023,\"humidity\":35,\"temp_min\":293.71,\"temp_max\":296.48},\"visibility\":10000,\"wind\":{\"speed\":2.6,\"deg\":280},\"clouds\":{\"all\":0},\"dt\":1567523276,\"sys\":{\"type\":1,\"id\":6848,\"message\":0.0082,\"country\":\"CZ\",\"sunrise\":1567484380,\"sunset\":1567532676},\"timezone\":7200,\"id\":3066636,\"name\":\"Roztoky\",\"cod\":200}";
-          Serial.println(result);
-          Serial.println("WEATHER | GOT DATA");
-          // remove notation for array
-          result.replace('[', ' ');
-          result.replace(']', ' ');
-          
-          StaticJsonDocument<1024> jsonDoc;
-          DeserializationError err = deserializeJson(jsonDoc, result);
-          
-          if (err != DeserializationError::Ok ){ // seems to work
-            Serial.println("parseObject() failed");
-            return false; 
-          }  
-          Serial.println("WEATHER | JSON CREATED");
-          
-          // need to use as<String>() syntex otherwise throws error, not sure why
-          // error message:  ambiguous overload for 'operator=' (operand types are 'String' and 'ArduinoJson6114_000001::enable_if<true, ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*> >::type {aka ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*>}')
-          // const char* val = jsonDoc["name"]; 
-          
-          location = jsonDoc["name"].as<String>(); // is empty
-          temperature = jsonDoc["main"]["temp"].as<String>();
-          weather = jsonDoc["weather"]["main"].as<String>();
-          description = jsonDoc["weather"]["description"].as<String>();
-          temperatureMax = jsonDoc["main"]["temp_max"].as<String>();
-          temperatureMin = jsonDoc["main"]["temp_min"].as<String>();
-          Serial.println("WEATHER | FILLED STRINGS");
-          weatherID =  jsonDoc["weather"]["id"].as<int>();
-          windDeg =  jsonDoc["wind"]["deg"].as<int>();
-          windSpeed =  jsonDoc["wind"]["speed"].as<float>();
-          clouds =  jsonDoc["clouds"]["all"].as<int>();
-          setWindDirection();
-          Serial.println("WEATHER | FILLED NUMBERS");
-          
-          Serial.print("WEATHER | WeatherID: ");
-          Serial.println(weatherID);
-          // same serial is used for nextion as for debug
-          startEndNextionCommand();
-          return true;
-      }
       // check it, no need to test for speed zero (will be taken care of in sendDatatoNextion())
       void setWindDirection(){
         if(windDeg >= 338){
