@@ -163,7 +163,7 @@ void loadDataFromEEPROM(){
     relayOpen = EEPROM.read(9);  
     if(relayOpen) digitalWrite(RELEVALV, HIGH);
     heatingOn = EEPROM.read(10);
-    if(heatingOn )
+    if(heatingOn) digitalWrite(RELEHEAT, HIGH);
   }
 }
 int counter = 0;
