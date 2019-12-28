@@ -17,9 +17,9 @@ class Security : public UnitAbstract{
 
     void updateDataOnNextion(){
       String command;
-      if(data.state){
+      if(isPositionKnown){
         startEndNextionCommand(); 
-        command= "textGPSState.txt=\"ON\"";
+        command= "textGPState.txt=\"ON\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgGPSState.pic=4";
@@ -28,12 +28,12 @@ class Security : public UnitAbstract{
         command= "textNOS.txt=\""+String(data.numberOfSatellites)+"ks\"";
         Serial2.print(command);
         startEndNextionCommand();
-        command= "textAccuracy.txt=\""+String(data.accuraccy)+"\"";
+        command= "textAccuraccy.txt=\""+String(((double) data.hdop)/100.0)+"\"";
         Serial2.print(command);
         startEndNextionCommand();
       }else{
         startEndNextionCommand(); 
-        command= "textGPSState.txt=\"OFF\"";
+        command= "textGPState.txt=\"OFF\"";
         Serial2.print(command);
         startEndNextionCommand(); 
         command= "imgGPSState.pic=10";
@@ -42,7 +42,7 @@ class Security : public UnitAbstract{
         command= "textNOS.txt=0";
         Serial2.print(command);
         startEndNextionCommand();
-        command= "textAccuracy.txt=\"0\"";
+        command= "textAccuraccy.txt=\"0\"";
         Serial2.print(command);
         startEndNextionCommand();    
       }  
@@ -51,8 +51,16 @@ class Security : public UnitAbstract{
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
     bool updateYourData(const uint8_t *newData){
+      Serial.print("SECURITY | updateYourData | size is: "); Serial.print(sizeof(newData)); Serial.print(" and "); Serial.println(sizeof(data));
       if(sizeof(newData) != sizeof(data)){
         memcpy(&data, newData, sizeof(data));
+        Serial.print("SECURITY | updateYourData | isPositionKnown:          "); Serial.println(isPositionKnown);
+        Serial.print("SECURITY | updateYourData | numberOfSatellites:       "); Serial.println(data.numberOfSatellites); 
+        Serial.print("SECURITY | updateYourData | latitude:                 "); Serial.println(data.latitude); 
+        Serial.print("SECURITY | updateYourData | longitude:                "); Serial.println(data.longitude);
+        Serial.print("SECURITY | updateYourData | hdop:                     "); Serial.println(data.hdop);
+        if(data.numberOfSatellites >=3) isPositionKnown = true;
+        
         return true;
       }
       return false;
@@ -65,14 +73,11 @@ class Security : public UnitAbstract{
     }
 
     // geters for variables in scructure for testing purpouse 
-    bool getState(){
-      return data.state;
-    }
     byte getNumberOfSatellites(){
       return data.numberOfSatellites;  
     }
-    double getAccuraccy(){
-      return data.accuraccy;
+    int32_t getHdop(){
+      return data.hdop;
     }
     float getLatitude(){
       return data.latitude;
@@ -81,14 +86,17 @@ class Security : public UnitAbstract{
     float getLongitude(){
       return data.longitude;  
     }
+    bool getIsPositionKnown(){
+      return isPositionKnown;  
+    }
   private:
     struct Data{
-      bool state;
-      byte numberOfSatellites;
-      float latitude;
-      float longitude;
-      float accuraccy;
+      uint32_t numberOfSatellites;
+      double latitude;
+      double longitude;
+      int32_t  hdop;
     };
+    boolean isPositionKnown = false;
     Data data;
 };
 #endif

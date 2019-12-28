@@ -95,7 +95,7 @@ esp_now_peer_info_t untypedPeers[20]; // max nuber of untyped peers
 
 esp_now_peer_info_t peerToBePairedWith; // wont be neccesseary here
 
-esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my confort, of course memcpy with 0 would work to
+esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my comfort, of course memcpy with 0 would work to
 
 Power power;
 Security security;
@@ -386,7 +386,7 @@ void attempToPair() {
     Serial.print((uint8_t) peerToBePairedWith.peer_addr[ii], HEX);
     if (ii != 5) Serial.print(":");
   }
-  Serial.print("Status:");
+  Serial.print(", Status:");
 
   // check if the peer exists
   bool exists = esp_now_is_peer_exist(peerToBePairedWith.peer_addr);
@@ -421,7 +421,6 @@ void attempToPair() {
       for(int i = 0; i < (sizeof(untypedPeers)/ sizeof(untypedPeers[0])); i++){
         printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); printAddress(emptyInfo.peer_addr);
         if(checkIfTwoAddressesAreSame(untypedPeers[i].peer_addr, emptyInfo.peer_addr)){ // will this work???
-          Serial.println("Found punctuationEmpty");
           memcpy(&untypedPeers[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
           i = sizeof(untypedPeers);
           sendDataToGetDeviceInfo(i);
@@ -443,13 +442,13 @@ void attempToPair() {
       Serial.println("Add Peer - Invalid Argument");
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
-      Serial.println("Peer list full"); // wont be necessary
+      Serial.println("Peer list full");
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory"); // TODO: fix
+      Serial.println("Out of memory"); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
-      Serial.println("Peer Exists");  // Imposible case in this case due to higher if
+      Serial.println("Peer Exists");
       noOfAttempts++;
     } else {
       Serial.println("Not sure what happened");
@@ -578,6 +577,8 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.println();
   Serial.print("CU | onDataRecv  | Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("CU | onDataRecv  | Last Packet Recv Data: "); Serial.println(*data);
+  Serial.print("CU | onDataRecv  | Last Packet Recv Data: "); Serial.println(data_len);
+  
   // check if it wont make trouble bool messageWasDiscarded
   bool wasUnitAdded = false;
   for(int i = 0; i < 20; i++){
@@ -602,24 +603,29 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     bool validMessage = true;
     switch(getSlaveTypeForMAC(mac_addr)){
       case SECURITY:
-        Serial.println("Sendind data to secutity");
+        Serial.println("Sendind data to security");
         if(security.updateYourData(data)) security.updateLastTimeRecived();
+        else validMessage = false;
         break;
       case WATER:
         Serial.println("Sendind data to water");
         if(water.updateYourData(data)) water.updateLastTimeRecived();
+        else validMessage = false;
         break;
       case WHEELS:
         Serial.println("Sendind data to wheels");
         if(wheels.updateYourData(data)) wheels.updateLastTimeRecived();
+        else validMessage = false;
         break;
       case HEATING:
         Serial.println("Sendind data to heating");
         if(heating.updateYourData(data)) heating.updateLastTimeRecived();
+        else validMessage = false;
         break;
       case POWER:
         Serial.println("Sendind data to power");
         if(power.updateYourData(data)) power.updateLastTimeRecived();
+        else validMessage = false;
         break;
       default:
         Serial.println("Not right mac, getSlaveForMac retruned EMPTY");
@@ -824,6 +830,7 @@ void loop(){
     Serial.println("CU | LOOP | COUNTER HIT");
     updateTime(); 
     //delay(400);
+    if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
     //weather.update();
     //weather.updateDataOnNextion(hour());
     interationCounter = 10;    
@@ -831,10 +838,9 @@ void loop(){
   }
 
   displayTime();
-  
+  security.updateDataOnNextion();
   ScanForSlave();
 
-  
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

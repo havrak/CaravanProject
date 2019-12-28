@@ -124,7 +124,7 @@ void addPulse() {
   }
 } 
 
-// EEPROM data with theirs respective adresses in parentheses: byte(0) -- will be one if something was written, literRemaiding(1,4), pulseCounter(5,8), relayOpen(9)
+// EEPROM data with theirs respective adresses in parentheses: byte(0) -- will be one if something was written, literRemaiding(1,4), pulseCounter(5,8), relayOpen(9), heatingOn(10)
 void storeDataInEEPROM(){
   if(EEPROM.read(0) == 0){
       EEPROM.write(0,1);
@@ -141,6 +141,7 @@ void storeDataInEEPROM(){
     EEPROM.write(i+5,temp[i]);
   }
   EEPROM.write(9,relayOpen);  
+  EEPROM.write(10,heatingOn);  
   EEPROM.commit();
 }
 
@@ -161,6 +162,8 @@ void loadDataFromEEPROM(){
     memcpy(&pulseCounter, temp, sizeof(temp));
     relayOpen = EEPROM.read(9);  
     if(relayOpen) digitalWrite(RELEVALV, HIGH);
+    heatingOn = EEPROM.read(10);
+    if(heatingOn )
   }
 }
 int counter = 0;
@@ -346,7 +349,6 @@ void setup() {
 
   
   digitalWrite(RELEVALV, LOW);
-    
   digitalWrite(RELEHEAT, LOW);
   //  pinMode(12, OUTPUT);             // rele ventil(HIGH vypnuto, LOW zapnuto
 
@@ -385,7 +387,7 @@ void loop() {
   // check for unactive
   connectionToWaterSource = (analogRead(PREASURE) > 250) ? true : false;
   topTankSensor = (digitalRead(LEVELTOP) == HIGH) ? true : false;
-  bottomTankSensor = (digitalRead(LEVELBOT) == HIGH) ? true : false;
+  bottomTankSensor = (digitalRead(LEVELBOT) == LOW) ? true : false; // is high until water is low enough
   temperature = tempSensor.getTempCByIndex(0);
   
   // take care of temperature
@@ -460,8 +462,13 @@ void loop() {
     litersRemaining = remainderWhenLowSensorHitted;
     validityOfData = 0;
   }
-  // give cpu rest
-  //delay(500);
+  if(temperature < 2){
+    heatingOn = true;
+    digitalWrite(RELEHEAT, HIGH);
+  }else if(heatingOn && temperature >= 5){
+    heatingOn = true;
+    digitalWrite(RELEHEAT, LOW);
+  }
   
   delay(500);
   

@@ -56,7 +56,6 @@ class Water : public UnitAbstract{
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
     bool updateYourData(const uint8_t *newData){
-      // newData << 32
       Serial.print("updateYourData Water | Recieved new data, size is: ");
       Serial.println(sizeof(newData));
       if(sizeof(newData) != sizeof(data)){

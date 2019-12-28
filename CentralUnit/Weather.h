@@ -23,14 +23,13 @@
 
 class Weather{
   public:
-    
-    Weather(float newLat, float newLon){
+    Weather(double newLat, double newLon){
       lat = newLat;
       lon = newLon;
       //update();
     }
 
-    void setNewPosition(float newLat, float newLon){
+    void setNewPosition(double newLat, double newLon){
       lat = newLat;
       lon = newLon;
     }
