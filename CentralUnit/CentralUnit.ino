@@ -73,15 +73,11 @@ enum SlaveTypes{
   SECURITY,WATER,WHEELS,HEATING,POWER,EMPTY
 };
 
-// TODO: find out how callbacks are handled
-// array of boolean prevents updating info in water.h by callbacks if there is new configuration being recived from olimex
-bool updateLocks[slaveTypesNumber];
-
 //Nextion on screen interactive items
-NexButton b1 = NexButton(0, 9, "b1");  // Button added
-NexTouch *nex_listen_list[] = {
-  &b1,  // Button added
-};
+//NexButton b1 = NexButton(0, 9, "b1");  // Button added
+//NexTouch *nex_listen_list[] = {
+//  &b1,  // Button added
+//};
 
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
 
@@ -93,10 +89,8 @@ long millisOfLastDataRecv;
 // two arrays, index, will be same, access only with methods, size is equal to number of enums in SlaveTypes
 SlaveTypes slaveTypes[slaveTypesNumber];
 esp_now_peer_info_t espInfo[slaveTypesNumber];
+unsigned long registryTime[slaveTypesNumber];
 
-esp_now_peer_info_t untypedPeers[20]; // max nuber of untyped peers
-
-esp_now_peer_info_t peerToBePairedWith; // wont be neccesseary here
 
 esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my comfort, of course memcpy with 0 would work to
 
@@ -122,17 +116,6 @@ void startEndNextionCommand(){
   Serial2.write(0xff);
   Serial2.write(0xff);
   Serial2.write(0xff);
-}
-
-// Cloud cause problems
-// returns index of mac_addr in untypedPeers, return -1 if mac was not found
-int getIndexOfUntyped(const uint8_t *mac_addr){
-  for(int i; i< (sizeof(untypedPeers)/sizeof(untypedPeers[0])); i++){
-    if(*mac_addr == *untypedPeers[i].peer_addr){
-        return i;
-      }
-  }
-  return -1; // TODO: check for colision futher on
 }
 
 // returns esp info that corresponds with given type (must be in arrays)
@@ -194,52 +177,52 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
 }
 
 // adds new entry into slaveTypes and espInfo, used after unit send its type
-void addNewSlaveToArray(int index, uint8_t type){
+void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
   for(int i = 0; i < slaveTypesNumber; i++){
     if(slaveTypes[i] == EMPTY){
       switch(type){
         case 1:
           slaveTypes[i] = SECURITY;
-          memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith)); // copies data to array
+          memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo)); // copies data to array
           Serial.println("CU | addNewSlaveToArray | Added SECURITY ESP32");
-          security.setEstablishedConnection(true);
+          security.setEstablishedConnection(true); security.updateLastTimeRecived(); sendConformationToUnit(i);
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
           Serial.print(", MAC address of security is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 2:
           slaveTypes[i] = WATER;
-          memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
+          memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added WATER ESP32");
-          water.setEstablishedConnection(true);
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          water.setEstablishedConnection(true); water.updateLastTimeRecived();
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of water is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 3:
           slaveTypes[i] = WHEELS;
-          memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
+          memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added WHEELS ESP32");
-          wheels.setEstablishedConnection(true);         
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          wheels.setEstablishedConnection(true); wheels.updateLastTimeRecived();
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of wheels is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 4:
           slaveTypes[i] = HEATING;
-          memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
+          memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added HEATING ESP32");
-          heating.setEstablishedConnection(true);         
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          heating.setEstablishedConnection(true); heating.updateLastTimeRecived();   
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of heating is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 5:
           slaveTypes[i] = POWER;
-          memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
+          memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added POWER ESP32");
-          power.setEstablishedConnection(true);
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          power.setEstablishedConnection(true); power.updateLastTimeRecived();
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of power is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
@@ -332,9 +315,8 @@ void initESPNow() {
 
 void configDeviceAP() {
   
-  WiFi.mode(WIFI_AP_STA);
   const char *SSID = "CARAVAN_CENTRAL_UNIT";
-  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, !pairingMode);
+  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, 0);
   if (!result) {
     Serial.println("AP Config failed.");
   } else {
@@ -347,30 +329,6 @@ void configDeviceAP() {
 // adjust number in case millis overflow happend 
 long adujistNumberIfTimeOverFlowed(long toBeAdjusted){
   return ULONG_MAX - toBeAdjusted + millis();
-}
-
-// send 190 towards unit, index refers to index of unit in untypedPeers
-void sendDataToGetDeviceInfo(int index){
-  Serial.println("CU | sendDataToGetDeviceInfo");
-  uint8_t data = 190;
-  esp_err_t result = esp_now_send(untypedPeers[index].peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
-  Serial.print("Send Status: ");
-  if (result == ESP_OK) {
-    Serial.println("Success");
-  } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
-    // How did we get so far!!
-    Serial.println("ESPNOW not Init.");
-  } else if (result == ESP_ERR_ESPNOW_ARG) {
-    Serial.println("Invalid Argument");
-  } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
-    Serial.println("Internal Error");
-  } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
-    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
-  } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-    Serial.println("Peer not found.");
-  } else {
-    Serial.println("Not sure what happened");
-  }
 }
 
 // remove peer (unpair)
@@ -442,18 +400,43 @@ void sendData(SlaveTypes type) {
 
 // callback for when data is sent from Master to Slave
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 10){ // try until data is send successfully
-    noOfAttempts++;
-    sendDataToGetDeviceInfo(getIndexOfUntyped(mac_addr));
-  }else if(status == ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr ){
-    noOfAttempts = 0;
-  }
+  //if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 10){ // try until data is send successfully
+  //  noOfAttempts++;
+  //  sendDataToGetDeviceInfo(getIndexOfUntyped(mac_addr));
+  //}else if(status == ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr ){
+  //  noOfAttempts = 0;
+  //}
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.print("Last Packet Sent to: "); Serial.println(macStr);
   Serial.print("Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
+
+void sendConformationToUnit(byte indexInEspInfo){
+  Serial.print("sending my type to central");
+  uint8_t data = 92;
+  esp_err_t result = esp_now_send(espInfo[indexInEspInfo].peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
+  Serial.print("Send Status: ");
+  if (result == ESP_OK) {
+    Serial.println("Success");
+  } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
+    initESPNow();
+    Serial.println("ESPNOW not Init.");
+  } else if (result == ESP_ERR_ESPNOW_ARG) {
+    Serial.println("Invalid Argument");
+  } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
+    Serial.println("Internal Error");
+  } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
+    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+  } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
+    Serial.println("Peer not found.");
+  } else {
+    Serial.println("Not sure what happened");
+  }
+  
+}
+
 
 // callback for when data is recived from sensor unit
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
@@ -469,21 +452,38 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   
   // check if it wont make trouble bool messageWasDiscarded
   bool wasUnitAdded = false;
-  for(int i = 0; i < 20; i++){
-    //printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr);
-    if(*untypedPeers[i].peer_addr == *mac_addr){ // does it really checks
-      if((*data-100) > 0 && (*data-100) <= slaveTypesNumber){
-        delay(10);
-        addNewSlaveToArray(i, *data-100);
-        untypedPeers[i] = emptyInfo;
-        wasUnitAdded = true;
-        break;
-      }else{ // we expect right input on first try
-        deletePeer(untypedPeers[i]);
-        untypedPeers[i] = emptyInfo;
-        break;
+    //printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr)
+  byte temp = (*data-100);
+  if( temp> 0 && temp <= slaveTypesNumber){
+    //bool doWeHaveTypeWithThatNumberSetUp;
+    //if(temp == 1 && espInfo[getIndexInSlaveTypes(SECURITY)] == emptyEspInfo && !checkIfTwoAddressesAreSame(espInfo[getIndexInSlaveTypes(SECURITY)].peer_addr,mac_addr)){
+    //  if 
+    //}
+    if(getSlaveTypeForMAC(mac_addr) == EMPTY){
+      delay(10);
+      esp_now_info_t toAdd;
+      
+      toAdd.peer_addr = mac_addr;
+      toAdd.channel = 1;
+      toAdd.encrypt = 0;
+      esp_err_t addStatus = esp_now_add_peer(&potentialCentral);
+      if (addStatus == ESP_OK) {
+        Serial.println("Paired");
       }
+      
+      addNewUnitToArray(toAdd, temp);
+      wasUnitAdded = true;
+      
+      uint8_t data = 101;
+      esp_err_t result = esp_now_send(potentialCentral.peer_addr, &data, sizeof(data));
+    }else{
+      sendConformationToUnit(getIndexInSlaveTypes(getSlaveTypeForMAC(mac_addr))); // unit will beg for confromation with each scan so 
     }
+    //else{
+    //  int index = getIndexInSlaveTypes(getSlaveTypeForMAC(mac_addr));
+    //  if()
+    //}
+
   }
     // millisOfLastDataRecv
   if(!wasUnitAdded){
@@ -726,7 +726,9 @@ void loop(){
     configDeviceAP();
     Serial.println("Btn pressed");
   }
-  
+  //if(pairingMode){
+  //  sendConformationToEachUnit();
+  //};
   delay(1000);
   // TODO: update only some iterations
   

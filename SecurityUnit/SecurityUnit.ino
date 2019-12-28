@@ -137,8 +137,9 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("Last Packet Recv Data: "); Serial.println(*data);
 
   // add protection
+  
   if (*data == (uint8_t) 92){
-    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr){ // prevent hijack of unit (very simple way)
+    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr)){ // prevent hijack of unit (very simple way)
       Serial.print("SU | onDataRecv | Set up central");
       central.channel = 1;
       central.encrypt = 0;
@@ -148,11 +149,12 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       esp_err_t addStatus = esp_now_add_peer(&central);
       memcpy(&central_addr,&mac_addr,sizeof(mac_addr));
       lastTimeDataRecived = 0;    
-    }else{
+    }else if (checkIfTwoAddressesAreSame(central.peer_addr, mac_addr)){ } else {
       Serial.println("SU | onDataRecv | got 88 from unit I wasn't expecting");  
     }
     //}
   }
+  
   if(*mac_addr == central_addr){
       lastTimeDataRecived = millis();
       if(*data != (uint8_t) 88){ // check if message is not just a ping
@@ -185,7 +187,7 @@ void ScanForCentral() {
         // Get BSSID => Mac Address of the Slave
         int mac[6];
         if ( 6 == sscanf(BSSIDstr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",  &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5] ) ) {
-          esp_now_peer_info temp;
+          esp_now_peer_info_t temp;
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
