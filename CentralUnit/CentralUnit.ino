@@ -33,6 +33,7 @@
 #define MISO 19
 #define MOSI 23
 #define CS 26
+#define CHANNEL 1
 
 //01 05 00 01 02 00 9d 6a
 char uart_buffer[8] = {0x01, 0x05, 0x00, 0x01, 0x02, 0x00, 0x9d, 0x6a};
@@ -40,15 +41,17 @@ char uart_rx_buffer[8] = {0};
  
 char Num = 0;
 char stringnum = 0;
-unsigned long W5500DataNum = 0;
-unsigned long Send_Num_Ok = 0;
-unsigned long Rec_num = 0;
-unsigned long Rec_Num_Ok = 0;
+//unsigned long W5500DataNum = 0;
+//unsigned long Send_Num_Ok = 0;
+//unsigned long Rec_num = 0;
+//unsigned long Rec_Num_Ok = 0;
 
 WebServer server(80);      // worked
 
 EthernetUDP Udp;               // worked
 NTPClient timeClient(Udp, "europe.pool.ntp.org", 3600); // worked
+bool pairingMode = true;
+
 
 TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
 TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
@@ -327,138 +330,23 @@ void initESPNow() {
   }
 }
 
+void configDeviceAP() {
+  
+  WiFi.mode(WIFI_AP_STA);
+  const char *SSID = "CARAVAN_CENTRAL_UNIT";
+  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, !pairingMode);
+  if (!result) {
+    Serial.println("AP Config failed.");
+  } else {
+    Serial.println("AP Config Success. Broadcasting with AP: " + String(SSID));
+  }
+  
+}
+
+
 // adjust number in case millis overflow happend 
 long adujistNumberIfTimeOverFlowed(long toBeAdjusted){
   return ULONG_MAX - toBeAdjusted + millis();
-}
-
-// scans network, finds all ESP32 unit
-// after unit is calls AttempToPair() for that unit()
-void ScanForSlave() {
-  int8_t scanResults = WiFi.scanNetworks();
-  Serial.println("");
-  if (scanResults == 0) {
-    Serial.println("No WiFi devices in AP Mode found");
-  } else {
-    //Serial.print("Found "); Serial.print(scanResults); Serial.println(" devices ");
-
-    for (int i = 0; i < scanResults; ++i) {
-      // Print SSID and RSSI for each device found
-      String SSID = WiFi.SSID(i);
-      int32_t RSSI = WiFi.RSSI(i);
-      String BSSIDstr = WiFi.BSSIDstr(i);
-      //Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
-      delay(60);
-
-      // Check if the current device starts with `Slave`
-      if (SSID.indexOf("ESPNOW") == 0) {
-        // Get BSSID => Mac Address of the Slave
-        int mac[6];
-        if ( 6 == sscanf(BSSIDstr.c_str(), "%02x:%02x:%02x:%02x:%02x:%02x",  &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5] ) ) {
-          // we have mac, now we create temp slave and attemp to pair
-          for (int ii = 0; ii < 6; ++ii ) {
-            peerToBePairedWith.peer_addr[ii] = (uint8_t) mac[ii];
-          }
-          peerToBePairedWith.channel = 1; // pick a channel
-          peerToBePairedWith.encrypt = 0;
-          // attempts to pair to found slave
-
-          // TODO: stop function here;
-          attempToPair();
-          // can be moved to callbacks after sending message here needs to be boolean to stop
-          // moving to next found STA
-          delay(10);
-        }
-      }
-    }
-  }
-  // clean up ram
-  WiFi.scanDelete();
-}
-
-// Checks if the slave is already paired with the master.
-// If not, than it pairs the unit with master and adds unit to untypedPeers 
-// than will send request for conformation same goes for when unit is paired but we didn't recived any info
-// units aren't (for now) removed from untypedPeers
-void attempToPair() {
-  Serial.print("Processing: ");
-  for (int ii = 0; ii < 6; ++ii ) {
-    Serial.print((uint8_t) peerToBePairedWith.peer_addr[ii], HEX);
-    if (ii != 5) Serial.print(":");
-  }
-  Serial.print(", Status:");
-
-  // check if the peer exists
-  bool exists = esp_now_is_peer_exist(peerToBePairedWith.peer_addr);
-  if (exists) {
-    // Slave already paired.
-    Serial.println("It exists");
-    delay(10);
-    // maybe check is mac is in table
-    if(doesntContainMac(peerToBePairedWith.peer_addr)){
-        //Serial.println("Doesn't contain mac");
-        sendDataToGetDeviceInfo(getIndexOfUntyped(peerToBePairedWith.peer_addr));
-    }
-    Serial.println("Already Paired");
-  } else {
-    // Slave not paired, attempt pair
-    Serial.println("Pairing");
-    esp_err_t addStatus = esp_now_add_peer(&peerToBePairedWith);
-    if (addStatus == ESP_OK) {
-      Serial.println("Paired");
-      // Pair success here message will be send and changed boolean/ metod for recv data
-      // also need to change sendCallback - that will check mac if failed than will data be sent again
-      // recv data also will check mac address - than special behaveior
-      // NEED TO CLEAN peerToBePairedWith !!!!!
-      // check form of mac (What type)
-
-      Serial.println("Pair success"); // attempt to pair ends
-
-      // peer will be added to array of peers we are expecting answer from
-
-
-      // can add only once, address is paired
-      for(int i = 0; i < (sizeof(untypedPeers)/ sizeof(untypedPeers[0])); i++){
-        printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); printAddress(emptyInfo.peer_addr);
-        if(checkIfTwoAddressesAreSame(untypedPeers[i].peer_addr, emptyInfo.peer_addr)){ // will this work???
-          memcpy(&untypedPeers[i], &peerToBePairedWith, sizeof(peerToBePairedWith));
-          i = sizeof(untypedPeers);
-          sendDataToGetDeviceInfo(i);
-          break; // exit for loop
-        }
-        Serial.println();
-      }
-
-      // TODO: after couple of retries attemToPair should exit maybe 3, than delete peer
-      // Should failiurese be counted in one int for whole pairing ????
-    } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
-      // How did we get so far!!
-      Serial.println("ESPNOW Not Init");
-      initESPNow();
-      if(noOfAttempts < 8){
-        attempToPair();
-      }
-    } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
-      Serial.println("Add Peer - Invalid Argument");
-      noOfAttempts++;
-    } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
-      Serial.println("Peer list full");
-      noOfAttempts++;
-    } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory"); 
-      noOfAttempts++;
-    } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
-      Serial.println("Peer Exists");
-      noOfAttempts++;
-    } else {
-      Serial.println("Not sure what happened");
-      noOfAttempts++;
-      if(noOfAttempts < 8){
-        attempToPair();
-      }
-    }
-    delay(100);
-  }
 }
 
 // send 190 towards unit, index refers to index of unit in untypedPeers
@@ -772,9 +660,10 @@ void setup(){
   while (!Serial);
 //  WiFi.onEvent(WiFiEvent);
 //  ETH.begin();
-  WiFi.mode(WIFI_STA); // must have for telnet to work
+  WiFi.mode(WIFI_AP_STA);
   // This is the mac address of the Master in Station Mode
-  Serial.print("CU | STA MAC: "); Serial.println(WiFi.macAddress());
+  configDeviceAP();
+  Serial.print("AP MAC: "); Serial.println(WiFi.softAPmacAddress());
 
   Serial.println("CU | SETUP | NETWORKING");
   // Init ESPNow with a fallback logic
@@ -812,6 +701,14 @@ void setup(){
   server.begin();
   Serial.println("Server started");
   */
+
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.setTextColor(YELLOW);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setCursor(3, 35);
+  M5.Lcd.println("Press button B for 300ms");
+  M5.Lcd.println("to enter or exit pairing mode");
+  M5.Lcd.println("DEVICE STARTS IN PAIRING MODE");
   
   timeClient.begin();
   //updateTime();
@@ -822,6 +719,13 @@ void setup(){
 
 int interationCounter = 0;
 void loop(){
+  M5.update();
+  
+  if (M5.BtnA.wasReleased()) {
+    pairingMode = !pairingMode;
+    configDeviceAP();
+    Serial.println("Btn pressed");
+  }
   
   delay(1000);
   // TODO: update only some iterations
@@ -842,7 +746,7 @@ void loop(){
   security.updateDataOnNextion();
   water.updateDataOnNextion();
   
-  ScanForSlave();
+  //ScanForSlave();
   
   //sendData(WATER);
   //removeUnactiveUnits();
