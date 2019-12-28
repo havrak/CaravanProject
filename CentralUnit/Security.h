@@ -39,7 +39,7 @@ class Security : public UnitAbstract{
         command= "imgGPSState.pic=10";
         Serial2.print(command);
         startEndNextionCommand();
-        command= "textNOS.txt=0";
+        command= "textNOS.txt=\"0\"";
         Serial2.print(command);
         startEndNextionCommand();
         command= "textAccuraccy.txt=\"0\"";

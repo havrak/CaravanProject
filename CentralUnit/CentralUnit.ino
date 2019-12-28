@@ -838,9 +838,12 @@ void loop(){
   }
 
   displayTime();
+  
   security.updateDataOnNextion();
+  water.updateDataOnNextion();
+  
   ScanForSlave();
-
+  
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

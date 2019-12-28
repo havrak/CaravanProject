@@ -49,7 +49,7 @@ class Water : public UnitAbstract{
       }
       Serial2.print(command);
       startEndNextionCommand(); 
-      command= "textWaterTemp.txt="+String(data.temperature)+"°C";
+      command= "textWaterTemp.txt=\""+String(data.temperature)+"°C\"";
       Serial2.print(command);
       startEndNextionCommand(); 
     }
