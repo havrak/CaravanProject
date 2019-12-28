@@ -64,7 +64,7 @@ byte validityOfData;
 
 int lastTimeDataRecived = 0;
 
-boolean checkIfTwoAddressesAreSame(const uint8_t addr1[],const uint8_t addr2[]){
+boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
   if(sizeof(addr1) != sizeof(addr2)){
     Serial.println("diffrent size");
     return false;
@@ -160,6 +160,7 @@ void loadDataFromEEPROM(){
     }
     memcpy(&pulseCounter, temp, sizeof(temp));
     relayOpen = EEPROM.read(9);  
+    if(relayOpen) digitalWrite(RELEVALV, HIGH);
   }
 }
 int counter = 0;
@@ -183,6 +184,7 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void sendData() {
+  Serial.println();
   Serial.println("Sending data");
   SendRecvDataStruct data;
   
@@ -191,6 +193,14 @@ void sendData() {
   data.temperature = temperature;
   data.validityOfData = validityOfData;
   data.heating = heatingOn;
+  Serial.println("DATA TO BE SEND");
+  Serial.print("connectionToWaterSource:  "); Serial.println(connectionToWaterSource);
+  Serial.print("litersRemaining:          "); Serial.println(litersRemaining); 
+  Serial.print("temperature:              "); Serial.println(temperature); 
+  Serial.print("validityOfData:           "); Serial.println(validityOfData);
+  Serial.print("heating;                  "); Serial.println(heatingOn);
+  
+  
   /*
   data.connectionToWaterSource = true;
   data.litersRemaining = 23.4;
@@ -219,6 +229,7 @@ void sendData() {
   } else {
     Serial.println("Not sure what happened");
   }
+  Serial.println();
 }
 
 // callback when data is recv from Master
@@ -234,7 +245,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   // add protection
   if (*data == (uint8_t) 190){
-    if((sendedIMyTypeToCentral && checkIfTwoAddressesAreSame(master.peer_addr, mac_addr)) || !sendedIMyTypeToCentral){ // prevent hijack of unit (very simple way)
+    //if((sendedIMyTypeToCentral && checkIfTwoAddressesAreSame(master.peer_addr, mac_addr)) || !sendedIMyTypeToCentral){ // prevent hijack of unit (very simple way)
       Serial.print("Got masters addr");
       master.channel = 1;
       master.encrypt = 0;
@@ -245,7 +256,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       sendConfirmation();
       memcpy(&master_addr,&mac_addr,sizeof(mac_addr));
       lastTimeDataRecived = 0;
-    }
+    //}
   }
   if(*mac_addr == master_addr){
   	  if(*data == (uint8_t) 88){ // we recived ping from main station
@@ -321,13 +332,6 @@ void setup() {
   initESPNow();
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
-
-  if (!EEPROM.begin(EEPROM_SIZE)){
-    validityOfData = 2; // we cant read from EEPROM
-    Serial.println("failed to initialise EEPROM");
-  }else{ // if EERPROM is empty validity is set to 2, if data is loaded validity is set to 1
-    loadDataFromEEPROM();
-  }
   
   //pinMode(4, OUTPUT);                     // relay (LOW on, HIGH off) - when on water can start flowing to water tank
   //pinMode(15, INPUT);                     // sensor of upper water level, HIGH on - sensor sends one if top sensor was hitted
@@ -350,6 +354,13 @@ void setup() {
   //pinMode(36, INPUT);             // snímač hladiny Horni, LOW sepnuto
   //pinMode(34, INPUT);             // snímač hladiny spodní, LOW sepnuto
   //pinMode(5, INPUT);              // Prutokomer impulsy
+
+  if (!EEPROM.begin(EEPROM_SIZE)){
+    validityOfData = 2; // we cant read from EEPROM
+    Serial.println("failed to initialize EEPROM");
+  }else{ // if EERPROM is empty validity is set to 2, if data is loaded validity is set to 1
+    loadDataFromEEPROM();
+  }
   
   M5.begin();  
   M5.Lcd.setTextColor(TFT_YELLOW);

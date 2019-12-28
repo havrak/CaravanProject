@@ -41,7 +41,7 @@ class Weather{
       command = "textWTemp.txt=\""+temperature+"°C\"";
       Serial2.print(command);
       startEndNextionCommand();
-      command = "textWMinMax.txt=\""+temperatureMax+"°C ,"+temperatureMin+"°C\"";
+      command = "textWMinMax.txt=\""+temperatureMax+"°C,"+temperatureMin+"°C\"";
       Serial2.print(command);
       startEndNextionCommand();
       // TODO: check field size
@@ -72,7 +72,7 @@ class Weather{
       Serial2.print(command);
       startEndNextionCommand();
       // make substring or whatever
-      command = "textWLocation.txt="+location;
+      command = "textWLocation.txt=\""+location+"\"";
       Serial2.print(command);
       startEndNextionCommand();
       // set icon according to weather id provided by openweather
@@ -185,10 +185,10 @@ class Weather{
       Serial.println("WEATHER | UPDATE");
       String result ="";
       if (!client.connect(servername, 80)) {
-        Serial.println("Cannot connect to server");
+        Serial.println("WEATHER | update | Cannot connect to server");
         return false;
       }
-      Serial.println("WEATHER | GOT CONNECTION");
+      Serial.println("WEATHER | update | GOT CONNECTION");
       // We now create a URI for the request
       String latStr = String(lat, 5);
       String lonStr = String(lon, 5);
@@ -202,15 +202,13 @@ class Weather{
       while (client.available() == 0) {
         if (millis() - timeout < 5000) {
           if(millis() - timeout < 0) timeout = millis();
-          Serial.println("Client is not yet available");
-          
         }else{
           break;  
           return false;
         }
       }
       // Read all the lines of the reply from server
-      Serial.println("WEATHER | GETTING DATA FORM SERVER");
+      Serial.println("WEATHER | update | GETTING DATA FORM SERVER");
       while(client.available()) { // doesn't work
         result = client.readStringUntil('\r');
         //Serial.println("WEATHER | GOT DATA");
@@ -227,10 +225,10 @@ class Weather{
       DeserializationError err = deserializeJson(jsonDoc, result);
           
       if (err != DeserializationError::Ok ){ // seems to work
-        Serial.println("WEATHER | DERSERIZATION FAILED");
+        Serial.println("WEATHER | update | DERSERIZATION FAILED");
         return false; 
       }  
-      Serial.println("WEATHER | JSON CREATED");
+      Serial.println("WEATHER | update | JSON CREATED");
           
       // need to use as<String>() syntex otherwise throws error, not sure why
       // error message:  ambiguous overload for 'operator=' (operand types are 'String' and 'ArduinoJson6114_000001::enable_if<true, ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*> >::type {aka ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*>}')
@@ -242,13 +240,12 @@ class Weather{
       description = jsonDoc["weather"]["description"].as<String>();
       temperatureMax = jsonDoc["main"]["temp_max"].as<String>();
       temperatureMin = jsonDoc["main"]["temp_min"].as<String>();
-      Serial.println("WEATHER | FILLED STRINGS");
       weatherID =  jsonDoc["weather"]["id"].as<int>();
       windDeg =  jsonDoc["wind"]["deg"].as<int>();
       windSpeed =  jsonDoc["wind"]["speed"].as<float>();
       clouds =  jsonDoc["clouds"]["all"].as<int>();
       setWindDirection();
-      Serial.println("WEATHER | FILLED NUMBERS");
+      Serial.println("WEATHER | update | FILLED STRINGS and NUMBERS");
           
       Serial.print("WEATHER | WeatherID: ");
       Serial.println(weatherID);
@@ -258,17 +255,15 @@ class Weather{
     }
     
     private:
-      // for some reason IP cannot be created here and needs to be passed from main
-      const char* servername ="api.openweathermap.org";  // remote server we will connect to
+      const char* servername ="api.openweathermap.org";
       String result;
       float lat;
       float lon;
       
       // weather info
       int weatherID;
+      
       int windDeg;
-
-      // why int?????
       int clouds;
 
       // wind ($windDiresciton ($windSpeed ms1))

@@ -13,7 +13,7 @@ class Water : public UnitAbstract{
     }
     
     void updateDataOnNextion(){
-      Serial.print("Updateing data on nextion");
+      Serial.print("WATER | updateDataOnNextion");
       String command;
       if(data.connectionToWaterSource){
         startEndNextionCommand(); 
@@ -57,10 +57,15 @@ class Water : public UnitAbstract{
     // check how flow works
     bool updateYourData(const uint8_t *newData){
       // newData << 32
-      Serial.println("Recived new data");
+      Serial.print("updateYourData Water | Recieved new data, size is: ");
+      Serial.println(sizeof(newData));
       if(sizeof(newData) != sizeof(data)){
         memcpy(&data, newData, sizeof(data));
-        Serial.print("Data: "); Serial.println(data.litersRemaining);
+          Serial.print("WATER | updateYourData | connectionToWaterSource:  "); Serial.println(data.connectionToWaterSource);
+          Serial.print("WATER | updateYourData | litersRemaining:          "); Serial.println(data.litersRemaining); 
+          Serial.print("WATER | updateYourData | temperature:              "); Serial.println(data.temperature); 
+          Serial.print("WATER | updateYourData | validityOfData:           "); Serial.println(data.validityOfData);
+          Serial.print("WATER | updateYourData | heating;                  "); Serial.println(data.heating);
         return true;
       }
       return false;

@@ -104,7 +104,7 @@ Wheels wheels;
 Heating heating;
 Connection connection;     // unsafe, crashes whole unit
 Temperatures temperatures;
-Weather weather(0,0);
+Weather weather(49.233056,17.666944);
 
 void b1PushCallback(void *ptr){
   digitalWrite(13, HIGH);  // Turn ON internal LED
@@ -153,11 +153,14 @@ int getIndexInSlaveTypes(SlaveTypes type){
 }
 
 // returns SlaveTypes that corresponds with mac_addr in argument (comparing in espInfo)
-SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
-  for(int i; i< sizeof(slaveTypes); i++){
-    if(*mac_addr == *espInfo[i].peer_addr){
-        return slaveTypes[i];
-      }
+SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){ //// propably does not work
+  for(int i = 0; i< slaveTypesNumber; i++){
+    //if(*mac_addr == *espInfo[i].peer_addr){
+    //    return slaveTypes[i];
+    //}
+    if(checkIfTwoAddressesAreSame(mac_addr, espInfo[i].peer_addr)){
+      return slaveTypes[i];  
+    }
   }
   return EMPTY;
 }
@@ -166,7 +169,7 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){
 bool doesntContainMac(uint8_t addr[]){
   for(int i = 0; i < slaveTypesNumber; i++){
     if(checkIfTwoAddressesAreSame(addr, espInfo[i].peer_addr)){
-        Serial.println("Mac address is already stored");
+        Serial.println("CU | doesntContainMac | Mac address is already stored");
         return false;
     }
   }
@@ -174,9 +177,11 @@ bool doesntContainMac(uint8_t addr[]){
 }
 
 // checks if two addresses are same
-boolean checkIfTwoAddressesAreSame(uint8_t *addr1, uint8_t *addr2){
+boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
+  Serial.print("CU | checkIfTwoAddressesAreSame | Address 1: "); printAddress(addr1);
+  Serial.print("CU | checkIfTwoAddressesAreSame | Address 2: "); printAddress(addr2);
   if(sizeof(addr1) != sizeof(addr2)){
-    Serial.println("diffrent size");
+    Serial.println("checkIfTwoAddressesAreSame in CU | diffrent size");
     return false;
   }
   for(int i = 0; i < (sizeof(addr1)/sizeof(addr1[0])); i++){
@@ -187,43 +192,52 @@ boolean checkIfTwoAddressesAreSame(uint8_t *addr1, uint8_t *addr2){
 
 // adds new entry into slaveTypes and espInfo, used after unit send its type
 void addNewSlaveToArray(int index, uint8_t type){
-  Serial.print("Index is untyped: "); Serial.println(index);
   for(int i = 0; i < slaveTypesNumber; i++){
     if(slaveTypes[i] == EMPTY){
       switch(type){
         case 1:
           slaveTypes[i] = SECURITY;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith)); // copies data to array
-          Serial.println("Added SECURITY ESP32");
+          Serial.println("CU | addNewSlaveToArray | Added SECURITY ESP32");
           security.setEstablishedConnection(true);
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          Serial.print(", MAC address of security is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 2:
           slaveTypes[i] = WATER;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
-          Serial.println("Added WATER ESP32");
+          Serial.println("CU | addNewSlaveToArray | Added WATER ESP32");
           water.setEstablishedConnection(true);
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          Serial.print(", MAC address of water is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 3:
           slaveTypes[i] = WHEELS;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
-          Serial.println("Added WHEELS ESP32");
-          wheels.setEstablishedConnection(true);
+          Serial.println("CU | addNewSlaveToArray | Added WHEELS ESP32");
+          wheels.setEstablishedConnection(true);         
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          Serial.print(", MAC address of wheels is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 4:
           slaveTypes[i] = HEATING;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
-          Serial.println("Added HEATING ESP32");
-          heating.setEstablishedConnection(true);
+          Serial.println("CU | addNewSlaveToArray | Added HEATING ESP32");
+          heating.setEstablishedConnection(true);         
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          Serial.print(", MAC address of heating is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
         case 5:
           slaveTypes[i] = POWER;
           memcpy (&espInfo[i], &untypedPeers[index], sizeof(peerToBePairedWith));
-          Serial.println("Added POWER ESP32");
+          Serial.println("CU | addNewSlaveToArray | Added POWER ESP32");
           power.setEstablishedConnection(true);
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
+          Serial.print(", MAC address of power is "); printAddress(espInfo[i].peer_addr);
           i = slaveTypesNumber;
           break;
       }
@@ -232,11 +246,12 @@ void addNewSlaveToArray(int index, uint8_t type){
 }
 
 // prints given mac address 
-void printAddress(uint8_t addr[]){
+void printAddress(const uint8_t addr[]){
   for (int i = 0; i < 6; ++i ) {
     Serial.print((uint8_t) addr[i], HEX);
     if (i != 5) Serial.print(":");
   }
+  Serial.println();
 }
 
 // root of server running on Olimex
@@ -299,34 +314,15 @@ void WiFiEvent(WiFiEvent_t event){
   }
 }
 */
-// tests if connection is running (for debug)
-void testClient(const char * host, uint16_t port){
-  Serial.print("\nconnecting to ");
-  Serial.println(host);
-
-  EthernetClient client;
-  if (!client.connect(host, port)) {
-    Serial.println("connection failed");
-    return;
-  }
-  client.printf("GET / HTTP/1.1\r\nHost: %s\r\n\r\n", host);
-  while (client.connected() && !client.available());
-  while (client.available()) {
-    Serial.write(client.read());
-  }
-
-  Serial.println("closing connection\n");
-  client.stop();
-}
 
 // Inits ESPNow
 void initESPNow() {
   WiFi.disconnect();
   if (esp_now_init() == ESP_OK) {
-    Serial.println("ESPNow Init Success");
+    Serial.println("CU | initESPNow | ESPNow Init Success");
   }
   else {
-    Serial.println("ESPNow Init Failed");
+    Serial.println("CU | initESPNow | ESPNow Init Failed");
     ESP.restart();
   }
 }
@@ -344,14 +340,14 @@ void ScanForSlave() {
   if (scanResults == 0) {
     Serial.println("No WiFi devices in AP Mode found");
   } else {
-    Serial.print("Found "); Serial.print(scanResults); Serial.println(" devices ");
+    //Serial.print("Found "); Serial.print(scanResults); Serial.println(" devices ");
 
     for (int i = 0; i < scanResults; ++i) {
       // Print SSID and RSSI for each device found
       String SSID = WiFi.SSID(i);
       int32_t RSSI = WiFi.RSSI(i);
       String BSSIDstr = WiFi.BSSIDstr(i);
-      Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
+      //Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
       delay(60);
 
       // Check if the current device starts with `Slave`
@@ -372,7 +368,6 @@ void ScanForSlave() {
           // can be moved to callbacks after sending message here needs to be boolean to stop
           // moving to next found STA
           delay(10);
-          Serial.println("Moving to next one");
         }
       }
     }
@@ -469,7 +464,7 @@ void attempToPair() {
 
 // send 190 towards unit, index refers to index of unit in untypedPeers
 void sendDataToGetDeviceInfo(int index){
-  Serial.println("Sending data to get info");
+  Serial.println("CU | sendDataToGetDeviceInfo");
   uint8_t data = 190;
   esp_err_t result = esp_now_send(untypedPeers[index].peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("Send Status: ");
@@ -581,9 +576,8 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   
   Serial.println();
-  Serial.print("Last Packet Recv from: "); Serial.println(macStr);
-  Serial.print("Last Packet Recv Data: "); Serial.println(*data);
-  Serial.println();
+  Serial.print("CU | onDataRecv  | Last Packet Recv from: "); Serial.println(macStr);
+  Serial.print("CU | onDataRecv  | Last Packet Recv Data: "); Serial.println(*data);
   // check if it wont make trouble bool messageWasDiscarded
   bool wasUnitAdded = false;
   for(int i = 0; i < 20; i++){
@@ -604,25 +598,31 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   }
     // millisOfLastDataRecv
   if(!wasUnitAdded){
-    Serial.println("Valid data");
+    Serial.println("New Data for unit");
     bool validMessage = true;
     switch(getSlaveTypeForMAC(mac_addr)){
       case SECURITY:
+        Serial.println("Sendind data to secutity");
         if(security.updateYourData(data)) security.updateLastTimeRecived();
         break;
       case WATER:
+        Serial.println("Sendind data to water");
         if(water.updateYourData(data)) water.updateLastTimeRecived();
         break;
       case WHEELS:
+        Serial.println("Sendind data to wheels");
         if(wheels.updateYourData(data)) wheels.updateLastTimeRecived();
         break;
       case HEATING:
+        Serial.println("Sendind data to heating");
         if(heating.updateYourData(data)) heating.updateLastTimeRecived();
         break;
       case POWER:
+        Serial.println("Sendind data to power");
         if(power.updateYourData(data)) power.updateLastTimeRecived();
         break;
       default:
+        Serial.println("Not right mac, getSlaveForMac retruned EMPTY");
         validMessage = false;
         break;
     }
@@ -630,9 +630,11 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         // doesnt matter if millis doesnt correspond it wont make a diffrence;
         millisOfLastDataRecv = millis();  
       }else{
-        Serial.print("message was invalid");  
+        Serial.println("CU | onDataRecv | Data was invalid");  
     }
   }
+  
+  Serial.println();
 }
 
 // remove unit that is fully set up
@@ -751,7 +753,7 @@ void displayTime(){
   startEndNextionCommand(); 
 }
 
-//HardwareSerial ss(2);
+
 void setup(){
   M5.begin(true, false, true);
   Serial.begin(115200);
@@ -766,9 +768,9 @@ void setup(){
 //  ETH.begin();
   WiFi.mode(WIFI_STA); // must have for telnet to work
   // This is the mac address of the Master in Station Mode
-  Serial.print("STA MAC: "); Serial.println(WiFi.macAddress());
+  Serial.print("CU | STA MAC: "); Serial.println(WiFi.macAddress());
 
-  Serial.println("SETUP | NETWORKING");
+  Serial.println("CU | SETUP | NETWORKING");
   // Init ESPNow with a fallback logic
   initESPNow();
   // Once ESPNow is successfully Init, we will register for Send CB to
@@ -783,7 +785,7 @@ void setup(){
   Ethernet.begin(mac, ip, dnsss, gw , nm);
   Udp.begin(8888);
   
-  Serial.println("SETUP | ESP32");
+  Serial.println("CU | SETUP | ESP32");
   for(int i = 0; i< 20; i++){
     for(int j = 0; i <6; i++){
         untypedPeers[i].peer_addr[j] = emptyInfo.peer_addr[j];
@@ -794,7 +796,7 @@ void setup(){
     slaveTypes[i] = EMPTY;
   }
   
-  Serial.println("SETUP | PREPARED ARRAYS");
+  Serial.println("CU | SETUP | PREPARED ARRAYS");
   /*
   server.on("/", handleRoot);
   server.on("/inline", []() {
@@ -809,7 +811,7 @@ void setup(){
   //updateTime();
   
   //weather.update();
-  Serial.println("SETUP | FINISHED");
+  Serial.println("CU | SETUP | FINISHED");
 }
 
 int interationCounter = 0;
@@ -818,33 +820,19 @@ void loop(){
   delay(1000);
   // TODO: update only some iterations
   
-  if(true){
-    Serial.println("LOOP | COUNTER HIT");
+  if(interationCounter == 0){
+    Serial.println("CU | LOOP | COUNTER HIT");
     updateTime(); 
-    delay(400);
-    weather.update();
-    interationCounter = 1000;    
-    //pingEachSesnorUnit();
+    //delay(400);
+    //weather.update();
+    //weather.updateDataOnNextion(hour());
+    interationCounter = 10;    
+    pingEachSesnorUnit();
   }
 
-  //connection.changeConnection();
   displayTime();
-  weather.updateDataOnNextion(hour());
   
   ScanForSlave();
-
-  //startEndNextionCommand();
-  //command = month() < 10 ? "textAccuracy.txt=\"0"+String(month())+"\"" : "textAccuracy.txt=\""+String(month())+"\"";
-  //startEndNextionCommand(); 
-  
-  char incomingByte = 0; // for incoming serial data
-  if (Serial2.available() > 0) {
-    // read the incoming byte:
-    incomingByte = Serial2.read();
-    // say what you got:
-    Serial.print("I received: ");
-    Serial.println(char(incomingByte));
-  }
 
   
   //sendData(WATER);
