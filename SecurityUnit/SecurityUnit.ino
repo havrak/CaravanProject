@@ -8,19 +8,20 @@
 #include <EEPROM.h>
 #include <TinyGPS++.h>
 #define EEPROM_SIZE 7
-bool isDataInEEPROM = false; //-- z EEPROM načte mastera 
 
 #define CHANNEL 1
 
 
 esp_now_peer_info_t central;
 esp_now_peer_info_t potentialCentral;
-//esp_now_peer;
+esp_now_peer_info_t emptyEspInfo;
 
 bool sendedIMyTypeToCentral = false;
 bool didCentralSendConfirmation = false;
 bool checkingAgaintsEEPROMmaster = false;
-uint8_t central_addr;
+bool isEEPROMinitialized = false;
+
+//uint8_t central_addr;
 byte noOfAttempts = 0;
 
 TinyGPSPlus gps;
@@ -75,10 +76,42 @@ void storeDataInEEPROM(){
   if(EEPROM.read(0) == 0){ // limited number of writes
       EEPROM.write(0,1);
   }
- 
- 
+  uint8_t test[6];
+  for(int i=1 ; i < 7; i++ ){
+    test[i-1] = EEPROM.read(i);  
+  }
+  if(!checkIfTwoAddressesAreSame(test, central.peer_addr)){
+    Serial.println("SU | storeDataInEEPROM | storing new central mac into EEPROM");
+    for(int i=1 ; i < 7; i++ ){
+      EEPROM.write(i,central.peer_addr[i-1]);  
+    }
+  }
   // check if data is same
   EEPROM.commit();
+}
+
+// 
+void sendMyTypeToCentral(){
+  Serial.print("SU | sendMyTypeToCentral | sending my type to central");
+  uint8_t data = 101;
+  esp_err_t result = esp_now_send(potentialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
+  Serial.print("SU | sendMyTypeToCentral | Send Status: ");
+  if (result == ESP_OK) {
+    Serial.println("SU | sendMyTypeToCentral | Success");
+  } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
+    initESPNow();
+    Serial.println("SU | sendMyTypeToCentral | ESPNOW not Init.");
+  } else if (result == ESP_ERR_ESPNOW_ARG) {
+    Serial.println("SU | sendMyTypeToCentral | Invalid Argument");
+  } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
+    Serial.println("SU | sendMyTypeToCentral | Internal Error");
+  } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
+    Serial.println("SU | sendMyTypeToCentral | ESP_ERR_ESPNOW_NO_MEM");
+  } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
+    Serial.println("SU | sendMyTypeToCentral | Peer not found.");
+  } else {
+    Serial.println("SU | sendMyTypeToCentral | Not sure what happened");
+  }
 }
 
 int counter = 0;
@@ -151,7 +184,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   // add protection
   
   if (*data == (uint8_t) 92){
-    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr)){
+    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potentialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potentialCentral wouldn't be empty
       Serial.print("SU | onDataRecv | Set up central");
       central.channel = 1;
       central.encrypt = 0;
@@ -159,15 +192,16 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent
       sendedIMyTypeToCentral = false;
       esp_err_t addStatus = esp_now_add_peer(&central);
-      memcpy(&central_addr,&mac_addr,sizeof(mac_addr));
+      memcpy(&central.peer_addr,&mac_addr,sizeof(mac_addr));
       lastTimeDataRecived = 0;    
+      storeDataInEEPROM(); // save new central into EEPROM
     }else if (checkIfTwoAddressesAreSame(central.peer_addr, mac_addr)){ } else {
       Serial.println("SU | onDataRecv | got 88 from unit I wasn't expecting");  
     }
     //}
   }
   
-  if(*mac_addr == central_addr){
+  if(checkIfTwoAddressesAreSame(mac_addr, central.peer_addr)){
       lastTimeDataRecived = millis();
       if(*data != (uint8_t) 88){ // check if message is not just a ping
         // NEW CONFIGURATION IS PROCESSED HERE
@@ -242,62 +276,42 @@ bool attempToPair() {
     if (addStatus == ESP_OK) {
       Serial.println("Paired");
       sendMyTypeToCentral();
+      return true;
     } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
       Serial.println("ESPNOW Not Init");
       initESPNow();
-      if(noOfAttempts < 8){
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)){
         attempToPair();
       }
     } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
       Serial.println("Add Peer - Invalid Argument");
-      if(noOfAttempts < 8) attempToPair(); 
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
       Serial.println("Peer list full");
-      if(noOfAttempts < 8) attempToPair(); 
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
       Serial.println("Out of memory"); 
-      if(noOfAttempts < 8) attempToPair(); 
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
       Serial.println("Peer Exists");
-      if(noOfAttempts < 8) attempToPair(); 
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else {
       Serial.println("Not sure what happened");
-      if(noOfAttempts < 8) attempToPair(); 
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     }
     delay(100);
   }
-  if(noOfAttempts >= 8) return false;
-  return true;
+  if(noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
+  delay(50);
+  
 }
 
-// 
-void sendMyTypeToCentral(){
-  Serial.print("SU | sendMyTypeToCentral | sending my type to central");
-  uint8_t data = 101;
-  esp_err_t result = esp_now_send(potentialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
-  Serial.print("SU | sendMyTypeToCentral | Send Status: ");
-  if (result == ESP_OK) {
-    Serial.println("SU | sendMyTypeToCentral | Success");
-  } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
-    initESPNow();
-    Serial.println("SU | sendMyTypeToCentral | ESPNOW not Init.");
-  } else if (result == ESP_ERR_ESPNOW_ARG) {
-    Serial.println("SU | sendMyTypeToCentral | Invalid Argument");
-  } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
-    Serial.println("SU | sendMyTypeToCentral | Internal Error");
-  } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
-    Serial.println("SU | sendMyTypeToCentral | ESP_ERR_ESPNOW_NO_MEM");
-  } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-    Serial.println("SU | sendMyTypeToCentral | Peer not found.");
-  } else {
-    Serial.println("SU | sendMyTypeToCentral | Not sure what happened");
-  }
-}
+
 
 // if central didin't send anything for 30 second we will delete her
 void deleteUnactiveCentral(){
@@ -336,11 +350,12 @@ void setup() {
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
   
-  
+  potentialCentral = emptyEspInfo;
   if (!EEPROM.begin(EEPROM_SIZE)){
     // we can't read from EEPROM
     Serial.println("CU | SETUP | failed to initialize EEPROM");
   }else{
+    isEEPROMinitialized = true;
     if(EEPROM.read(0) == 0){
       Serial.println("CU | loadDataFromEEPROM | EEPROM is empty");
     }else{
@@ -350,6 +365,7 @@ void setup() {
       potentialCentral.channel = 1; // pick a channel
       potentialCentral.encrypt = 0;
       checkingAgaintsEEPROMmaster = true;
+      attempToPair(); // will already send request for confirmation
   }
 }
   M5.begin();  
@@ -382,7 +398,7 @@ static void smartDelay(unsigned long ms){
   {
     while (Serial2.available())
       gps.encode(Serial2.read());
-  } while (millis() - start < ms);
+  } while (getTimeDiffrence(start) < ms);
 }
 
 void loop() {

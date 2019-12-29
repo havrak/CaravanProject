@@ -5,10 +5,18 @@
 gps.satellites.value(.satellites.value()
 gps.location.lat()
 gps.location.lng()
+i
+
+
+načtená data z EEPROM -- centrála si načte, pošle jednotce 88, ta si mac porovná s uloženým, pokud není inicializovaná EEPROM tak nastaví na mastera rovnou
+
+načte mastera do potentialMaster z EEPROM -- bude čekat na číslo 88, dáme větší čas na čekání - 30 sekund, než bude skenovat dál
+kontrolovat čas přechodu v loop
 
 + tlačítko
 	+ po stisknutí se odhalí SSID
 	+ po dalším stisknutí ho zase schová
+
 + jednotka
 	+ neustále skenuje
 	+ najde li jednotku s SSID CARAVAN_CENTRAL_UNIT tak se spáruje
@@ -22,6 +30,8 @@ gps.location.lng()
 	+ přijde jí zpráva s číslem, pokud je v range, tak si vytvoří esp_info, přidá ho do pole jednotek, spáruje se nazpátek, pošle kód 92, nastaví si datum poslední zprávy na millis()
 	+ pravidelně posílá ping - číslo 88
 
+Jsou jiný a čas je -1 --- pustit dál
+Jsou jiný a čas je > 10 000 --- pustit dál
 
 
 /interface ethernet poe set ether4 poe-out=off
