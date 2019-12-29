@@ -1,19 +1,19 @@
 /*
     Code for central unit, runs on OLIMEX Gateway
 */
-#include <esp_now.h>    // for enabling ESP NOW wich is used to communicate with units
-#include <WiFi.h>       // for ESP NOW
-#include <SPI.h>        // for ethernet
-#include <WebServer.h>  // for running webserver on Olimex
-#include <EEPROM.h>     // for writing data into EEPROM (probably wont be used here)
-#include <Time.h>       // for timekeeping
-#include <WiFiUdp.h>    // for WifiUdp - as argument in timeCliet
-#include <NTPClient.h>  // for syncing time via NTP
-#include <Nextion.h>    // for getting data from nextion display
-#include <Timezone.h>   // for keeping track of timezones and summer time
-#include <M5Stack.h>
-#include <Ethernet2.h>
-#include <EthernetUdp2.h>
+#include <esp_now.h>        // for enabling ESP NOW wich is used to communicate with units
+#include <WiFi.h>           // for ESP NOW
+#include <SPI.h>            // for ethernet
+#include <WebServer.h>      // for running webserver on Olimex
+#include <EEPROM.h>         // for writing data into EEPROM (probably wont be used here)
+#include <Time.h>           // for timekeeping
+#include <WiFiUdp.h>        // for WifiUdp - as argument in timeCliet
+#include <NTPClient.h>      // for syncing time via NTP
+#include <Nextion.h>        // for getting data from nextion display
+#include <Timezone.h>       // for keeping track of timezones and summer time
+#include <M5Stack.h>        // for controling M5Stack functions
+#include <Ethernet2.h>      // ethernet library for M5Stack lan module
+#include <EthernetUdp2.h>   // for Udp which is needed for NTPClient
 
 #include "Free_Fonts.h"
 #include "Water.h"
@@ -34,11 +34,11 @@
 #define CHANNEL 1
 
 //01 05 00 01 02 00 9d 6a
-char uart_buffer[8] = {0x01, 0x05, 0x00, 0x01, 0x02, 0x00, 0x9d, 0x6a};
-char uart_rx_buffer[8] = {0};
+//char uart_buffer[8] = {0x01, 0x05, 0x00, 0x01, 0x02, 0x00, 0x9d, 0x6a};
+//char uart_rx_buffer[8] = {0};
  
-char Num = 0;
-char stringnum = 0;
+//char Num = 0;
+//char stringnum = 0;
 //unsigned long W5500DataNum = 0;
 //unsigned long Send_Num_Ok = 0;
 //unsigned long Rec_num = 0;
@@ -194,10 +194,10 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           slaveTypes[i] = SECURITY;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo)); // copies data to array
           Serial.println("CU | addNewSlaveToArray | Added SECURITY");
-          security.setEstablishedConnection(true); security.updateLastTimeRecived(); sendConformationToUnit(i);
+          security.setEstablishedConnection(true); security.updateLastTimeRecived(); 
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
-          Serial.println(", MAC address of security is "); printAddress(espInfo[i].peer_addr);
-          storeUnitInEEPROM(espInfo[i], 1);
+          Serial.print(", MAC address of security is "); printAddress(espInfo[i].peer_addr); Serial.println("");
+          storeUnitInEEPROM(espInfo[i], 1); sendConformationToUnit(i);
           i = slaveTypesNumber;
           break;
         case 2:
@@ -206,20 +206,20 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added WATER");
           water.setEstablishedConnection(true); water.updateLastTimeRecived();
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
-          Serial.println(", MAC address of water is "); printAddress(espInfo[i].peer_addr);
-          storeUnitInEEPROM(espInfo[i], 2);
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); 
+          Serial.print(", MAC address of water is "); printAddress(espInfo[i].peer_addr); Serial.println("");
+          storeUnitInEEPROM(espInfo[i], 2); sendConformationToUnit(i);
           i = slaveTypesNumber;
           break;
         case 3:
-        if(doesArrayAlreadyContainsType(WHEELS)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
+          if(doesArrayAlreadyContainsType(WHEELS)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
           slaveTypes[i] = WHEELS;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added WHEELS");
           wheels.setEstablishedConnection(true); wheels.updateLastTimeRecived();
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
-          Serial.println(", MAC address of wheels is "); printAddress(espInfo[i].peer_addr);
-          storeUnitInEEPROM(espInfo[i], 3);
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); 
+          Serial.print(", MAC address of wheels is "); printAddress(espInfo[i].peer_addr); Serial.println("");
+          storeUnitInEEPROM(espInfo[i], 3); sendConformationToUnit(i);
           i = slaveTypesNumber;
           break;
         case 4:
@@ -228,9 +228,9 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added HEATING");
           heating.setEstablishedConnection(true); heating.updateLastTimeRecived();   
-          Serial.print(", index is: "); Serial.print(i); sendConformationToUnit(i);
-          Serial.println(", MAC address of heating is "); printAddress(espInfo[i].peer_addr);
-          storeUnitInEEPROM(espInfo[i], 4);
+          Serial.print(", index is: "); Serial.print(i); 
+          Serial.print(", MAC address of heating is "); printAddress(espInfo[i].peer_addr); Serial.println("");
+          storeUnitInEEPROM(espInfo[i], 4); sendConformationToUnit(i);
           i = slaveTypesNumber;
           break;
         case 5:
@@ -239,9 +239,9 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added POWER");
           power.setEstablishedConnection(true); power.updateLastTimeRecived();
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
-          Serial.println(", MAC address of power is "); printAddress(espInfo[i].peer_addr);
-          storeUnitInEEPROM(espInfo[i], 5);
+          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); 
+          Serial.print(", MAC address of power is "); printAddress(espInfo[i].peer_addr); Serial.println("");
+          storeUnitInEEPROM(espInfo[i], 5); sendConformationToUnit(i);
           i = slaveTypesNumber;
           break;
       }
@@ -258,7 +258,7 @@ void printAddress(const uint8_t addr[]){
   Serial.println();
 }
 
-// root of server running on Olimex
+// root of server running on M5Stack
 void handleRoot() {
   server.send(200, "text/plain", "hello from esp32!");
 }
@@ -294,20 +294,20 @@ void initESPNow() {
 void configDeviceAP() {
   WiFi.softAPdisconnect(1);
   const char *SSID = "CARAVAN_CENTRAL_UNIT";
-  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, pairingMode);
+  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, !pairingMode);
   if (!result) {
     Serial.println("CU | configDeviceAP | AP Config failed.");
   } else {
     Serial.print("CU | configDeviceAP | AP Config Success. Broadcasting with AP: " + String(SSID) + ", pairing Mode is: "); Serial.println(pairingMode);
   }
-  initESPNow();
+  initESPNow(); // is this needed
   esp_now_register_send_cb(onDataSent);
   esp_now_register_recv_cb(onDataRecv);
   for(int i = 0; i < slaveTypesNumber; i++){ // after ESPNow init we need to repair with each unit
     if(slaveTypes[i] != EMPTY){
       esp_err_t addStatus = esp_now_add_peer(&espInfo[i]);
       if (addStatus != ESP_OK) {
-        Serial.print("CU |configDeviceAP |Pairing after reciving data failed, tried to pair with: "); Serial.println(int(slaveTypes[i]));
+        Serial.print("CU | configDeviceAP | pairing after reciving data failed, tried to pair with: "); Serial.println(int(slaveTypes[i]));
       }
     }
   }
@@ -382,12 +382,6 @@ void sendData(SlaveTypes type) {
 
 // callback for when data is sent from Master to Slave
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  //if(status != ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr && noOfAttempts < 10){ // try until data is send successfully
-  //  noOfAttempts++;
-  //  sendDataToGetDeviceInfo(getIndexOfUntyped(mac_addr));
-  //}else if(status == ESP_NOW_SEND_SUCCESS && *mac_addr == *peerToBePairedWith.peer_addr ){
-  //  noOfAttempts = 0;
-  //}
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
@@ -396,7 +390,7 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 }
 
 void sendConformationToUnit(byte indexInEspInfo){
-  Serial.print("CU | sendConformationToUnit | sending my type to central");
+  Serial.println("CU | sendConformationToUnit | sending to unit: "+ String(indexInEspInfo));
   uint8_t data = 92;
   esp_err_t result = esp_now_send(espInfo[indexInEspInfo].peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("CU | sendConformationToUnit | Send Status: ");
@@ -444,6 +438,7 @@ bool loadDataFromEEPROM(){
     Serial.println("CU | loadDataFromEEPROM | EEPROM is empty");
     return false;
   }else{
+    Serial.println("CU | loadDataFromEEPROM | loading data");
     for(int i = 1; i < (slaveTypesNumber*7+1); i += 7){
       uint8_t type = EEPROM.read(i);
       esp_now_peer_info_t temp;
@@ -458,12 +453,9 @@ bool loadDataFromEEPROM(){
         Serial.println("CU | loadDataFromEEPROM | we already know that unit");  
       }
     }
-    
-    bool checkingAgaintsEEPROMmaster = true;
     return true;
   }
 }
-
 
 // callback for when data is recived from sensor unit
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
@@ -474,42 +466,28 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   
   Serial.println();
   Serial.print("CU | onDataRecv  | Last Packet Recv from: "); Serial.println(macStr);
-  Serial.print("CU | onDataRecv  | Last Packet Recv Data: "); Serial.println(*data);
   Serial.print("CU | onDataRecv  | Last Packet Recv Data: "); Serial.println(data_len);
   
-  // check if it wont make trouble bool messageWasDiscarded
-  bool wasUnitAdded = false;
     //printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr)
   byte temp = (*data-100);
-  if( temp> 0 && temp <= slaveTypesNumber){
-    //bool doWeHaveTypeWithThatNumberSetUp;
-    //if(temp == 1 && espInfo[getIndexInSlaveTypes(SECURITY)] == emptyEspInfo && !checkIfTwoAddressesAreSame(espInfo[getIndexInSlaveTypes(SECURITY)].peer_addr,mac_addr)){
-    //  if 
-    //}
+  if( temp > 0 && temp <= slaveTypesNumber){
     if(getSlaveTypeForMAC(mac_addr) == EMPTY){
-      delay(10);
+      Serial.print("CU | onDataRecv | Got new unit ist mac is: "); printAddress(mac_addr); Serial.println("");
       esp_now_peer_info_t toAdd;
-      memcpy(toAdd.peer_addr, mac_addr, sizeof(toAdd.peer_addr));
       toAdd.channel = 1;
       toAdd.encrypt = 0;
-      esp_err_t addStatus = esp_now_add_peer(&toAdd);
-      if (addStatus != ESP_OK) {
-        Serial.print("Pairing after reciving data failed, tried to pair with: "); Serial.println(temp);
+      memcpy(toAdd.peer_addr, mac_addr, sizeof(toAdd.peer_addr));
+      Serial.print("CU | onDataRecv | mac of toAdd is: "); printAddress(toAdd.peer_addr); Serial.println("");
+      if(!esp_now_is_peer_exist(toAdd.peer_addr)){
+        esp_err_t addStatus = esp_now_add_peer(&toAdd);
+        if (addStatus != ESP_OK) Serial.print("CU | onDataRecv | Pairing after reciving data failed, tried to pair with: "); Serial.println(temp);
       }
-      
-      addNewUnitToArray(toAdd, temp);
-      wasUnitAdded = true;
+      if(esp_now_is_peer_exist(toAdd.peer_addr)) addNewUnitToArray(toAdd, temp);   
     }else{
-      sendConformationToUnit(getIndexInSlaveTypes(getSlaveTypeForMAC(mac_addr))); // unit will beg for confromation with each scan so 
+      Serial.println("CU | onDataRecv | got data from unit that i know, sending confirmation");
+      sendConformationToUnit(getIndexInSlaveTypes(getSlaveTypeForMAC(mac_addr)));
     }
-    //else{
-    //  int index = getIndexInSlaveTypes(getSlaveTypeForMAC(mac_addr));
-    //  if()
-    //}
-
-  }
-    // millisOfLastDataRecv
-  if(!wasUnitAdded){
+  } else{
     bool validMessage = true;
     switch(getSlaveTypeForMAC(mac_addr)){
       case SECURITY:
@@ -647,18 +625,17 @@ void displayTime(){
 void setup(){
   M5.begin(true, false, true);
   Serial.begin(115200);
-  //ss.begin(9600);
   Serial2.begin(9600, SERIAL_8N1,16,17);
-  //Serial2.print("baud=115200");
-  //startEndNextionCommand();
-  //Serial2.end();  // End the serial comunication of baud=9600
-  //Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
+  /* Serial2.print("baud=115200");
+   * startEndNextionCommand();
+   * Serial2.end();  // End the serial comunication of baud=9600
+   * Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200 */
   while (!Serial);
   
   WiFi.mode(WIFI_AP_STA);
   // This is the mac address of the Master in Station Mode
   configDeviceAP();
-  Serial.print("CU |SETUP | AP MAC: "); Serial.println(WiFi.softAPmacAddress());
+  Serial.print("CU | SETUP | AP MAC: "); Serial.println(WiFi.softAPmacAddress());
 
   // Init ESPNow with a fallback logic
   //initESPNow();
@@ -699,18 +676,17 @@ void setup(){
   M5.Lcd.println("to clear EEPROM");
 
   if (!EEPROM.begin(EEPROM_SIZE)){
-    // we can't read from EEPROM
     Serial.println("CU | SETUP | failed to initialize EEPROM");
      M5.Lcd.println("EEPROM is down");
   }else{
-    loadDataFromEEPROM();
+    //loadDataFromEEPROM();
   }
   
   
-  timeClient.begin();
+  //timeClient.begin();
   //updateTime();
-  
   //weather.update();
+  
   Serial.println("CU | SETUP | FINISHED");
 }
 
@@ -723,30 +699,26 @@ void loop(){
     configDeviceAP();
   }
   if (M5.BtnB.wasReleased() && EEPROM.read(0) == 1) {
-    Serial.println("CU | LOOP | EEPROM was cleared")
+    Serial.println("CU | LOOP | EEPROM was cleared");
     EEPROM.write(0,0); 
   }
-  //if(pairingMode){
-  //  sendConformationToEachUnit();
-  //};
   
+  /*
   if(interationCounter == 0){
     updateTime();
-    //delay(400);
     if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
-    //weather.update();
-    //weather.updateDataOnNextion(hour());
+    weather.update();
+    weather.updateDataOnNextion(hour());
     interationCounter = 10;    
     pingEachSesnorUnit();
   }
 
   displayTime();
+
   
   security.updateDataOnNextion();
   water.updateDataOnNextion();
-  
-  //ScanForSlave();
-  
+  */
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

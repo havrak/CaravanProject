@@ -13,7 +13,7 @@
 
 
 esp_now_peer_info_t central;
-esp_now_peer_info_t potentialCentral;
+esp_now_peer_info_t potencialCentral;
 esp_now_peer_info_t emptyEspInfo;
 
 bool sendedIMyTypeToCentral = false;
@@ -50,8 +50,17 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
   return true;
 }
 
+// prints given mac address 
+void printAddress(const uint8_t addr[]){
+  for (int i = 0; i < 6; ++i ) {
+    Serial.print((uint8_t) addr[i], HEX);
+    if (i != 5) Serial.print(":");
+  }
+  Serial.println();
+}
+
 // millis() counter resets every 50 days, gives time diffrence between millis() and sTime in argument
-unsigned long getTimeDiffrence(unsigned long sTime){
+unsigned long getTimeDiffrence(const unsigned long sTime){
   if(millis() < sTime){
     return (ULONG_MAX - sTime) + millis();
   }
@@ -91,25 +100,25 @@ void storeDataInEEPROM(){
 
 // 
 void sendMyTypeToCentral(){
-  Serial.print("SU | sendMyTypeToCentral | sending my type to central");
+  Serial.print("SU | sendMyTypeToCentral | sending my type to central, its mac is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
   uint8_t data = 101;
-  esp_err_t result = esp_now_send(potentialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
+  esp_err_t result = esp_now_send(potencialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("SU | sendMyTypeToCentral | Send Status: ");
   if (result == ESP_OK) {
-    Serial.println("SU | sendMyTypeToCentral | Success");
+    Serial.println("success");
   } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
     initESPNow();
-    Serial.println("SU | sendMyTypeToCentral | ESPNOW not Init.");
+    Serial.println("ESPNOW not Init.");
   } else if (result == ESP_ERR_ESPNOW_ARG) {
-    Serial.println("SU | sendMyTypeToCentral | Invalid Argument");
+    Serial.println("Invalid Argument");
   } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
-    Serial.println("SU | sendMyTypeToCentral | Internal Error");
+    Serial.println("Internal Error");
   } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
-    Serial.println("SU | sendMyTypeToCentral | ESP_ERR_ESPNOW_NO_MEM");
+    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
   } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-    Serial.println("SU | sendMyTypeToCentral | Peer not found.");
+    Serial.println("Peer not found.");
   } else {
-    Serial.println("SU | sendMyTypeToCentral | Not sure what happened");
+    Serial.println("Not sure what happened");
   }
 }
 
@@ -183,16 +192,17 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   // add protection
   
   if (*data == (uint8_t) 92){
-    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potentialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potentialCentral wouldn't be empty
-      Serial.print("SU | onDataRecv | Set up central");
+    if(checkIfTwoAddressesAreSame(potencialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potencialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potencialCentral wouldn't be empty
+      Serial.println("SU | onDataRecv | Set up central");
       counter=0;
       memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent
-      sendedIMyTypeToCentral = false;
+      didCentralSendConfirmation = true;
       esp_err_t addStatus = esp_now_add_peer(&central);
       memcpy(&central.peer_addr,&mac_addr,sizeof(mac_addr));
       lastTimeDataRecived = 0;    
+      Serial.print("SU | onDataRecv | Centrals mac address is: "); printAddress(central.peer_addr); Serial.println("");
       storeDataInEEPROM(); // save new central into EEPROM
-    }else if (checkIfTwoAddressesAreSame(central.peer_addr, mac_addr)){ } else {
+    }else  {
       Serial.println("SU | onDataRecv | got 88 from unit I wasn't expecting");  
     }
     //}
@@ -222,7 +232,7 @@ void ScanForCentral() {
       String SSID = WiFi.SSID(i);
       int32_t RSSI = WiFi.RSSI(i);
       String BSSIDstr = WiFi.BSSIDstr(i);
-      //Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
+      Serial.print(i + 1); Serial.print(": "); Serial.print(SSID); Serial.print(" ["); Serial.print(BSSIDstr); Serial.print("]"); Serial.print(" ("); Serial.print(RSSI); Serial.print(")"); Serial.println("");
       delay(60);
 
       // Check if the current device starts with `Slave`
@@ -234,15 +244,15 @@ void ScanForCentral() {
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          if(!checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr)){
-            memcpy(potentialCentral.peer_addr, temp.peer_addr, sizeof(temp.peer_addr));
-            potentialCentral.channel = 1;
-            potentialCentral.encrypt = 0;
+          if(startTime == -1 || !checkIfTwoAddressesAreSame(potencialCentral.peer_addr, temp.peer_addr)){
+            memcpy(potencialCentral.peer_addr, temp.peer_addr, sizeof(temp.peer_addr));
+            potencialCentral.channel = 1;
+            potencialCentral.encrypt = 0;
             // attempts to pair to found slave
-            attempToPair();
             startTime = millis();
             checkingAgaintsEEPROMmaster = false;
             sendMyTypeToCentral();
+            if(!attempToPair()) startTime == -1;
           }
         }
       }
@@ -256,15 +266,15 @@ bool attempToPair() {
   Serial.print("SU | attempToPair | Processing: ");
   
   for (int ii = 0; ii < 6; ++ii ) {
-    Serial.print((uint8_t) potentialCentral.peer_addr[ii], HEX);
+    Serial.print((uint8_t) potencialCentral.peer_addr[ii], HEX);
     if (ii != 5) Serial.print(":");
   }
   Serial.print(", Status:");
 
   // check if the peer exists
-  if (!esp_now_is_peer_exist(potentialCentral.peer_addr)) {
+  if (!esp_now_is_peer_exist(potencialCentral.peer_addr)) {
     Serial.println("Pairing");
-    esp_err_t addStatus = esp_now_add_peer(&potentialCentral);
+    esp_err_t addStatus = esp_now_add_peer(&potencialCentral);
     if (addStatus == ESP_OK) {
       Serial.println("Paired");
       sendMyTypeToCentral();
@@ -342,7 +352,8 @@ void setup() {
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
   
-  potentialCentral = emptyEspInfo;
+  potencialCentral = emptyEspInfo;
+  delay(500);
   if (!EEPROM.begin(EEPROM_SIZE)){
     // we can't read from EEPROM
     Serial.println("CU | SETUP | failed to initialize EEPROM");
@@ -351,37 +362,27 @@ void setup() {
     if(EEPROM.read(0) == 0){
       Serial.println("CU | SETUP | EEPROM is empty");
     }else{
+      Serial.println("CU | SETUP | Loading data from EEPROM");
       for (int i = 0; i < 6; ++i ) {
-        potentialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
+        potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
       }
-      potentialCentral.channel = 1; // pick a channel
-      potentialCentral.encrypt = 0;
+      potencialCentral.channel = 1; // pick a channel
+      potencialCentral.encrypt = 0;
       if(attempToPair()){ 
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
       } // will already send request for confirmation
+      Serial.print("SU | SETUP | Central address that i got from EEPROM is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
   }
 }
   M5.begin();  
   M5.Lcd.setTextColor(TFT_YELLOW);
   M5.Lcd.setFreeFont(FSB12);   
-  
+  ScanForCentral();
 }
 
 int val;
 byte count = 0;
-
-static void printInt(unsigned long val, bool valid, int len)
-{
-  //char sz[32] = "*****************";
-  char sz[32] = "";
-  if (valid) sprintf(sz, "%ld", val);
-  sz[len] = 0;
-  for (int i=strlen(sz); i<len; ++i) sz[i] = ' ';
-  if (len > 0) sz[len-1] = ' ';
-  M5.Lcd.print(sz);
-  smartDelay(0);
-}
 
 // This custom version of delay() ensures that the gps object is being "fed".
 
@@ -399,18 +400,21 @@ void loop() {
   latitude = gps.location.lat();
   longitude = gps.location.lng();
   hdop = gps.hdop.value() ;
-  printInt(gps.satellites.value(), gps.satellites.isValid(), 5);
+  
   Serial.println("");
-  Serial.print("SU | LOO | numberOfSatellites is: "); Serial.println(numberOfSatellites);
-  Serial.print("SU | LOO | hdop is:               "); Serial.println(hdop);
-  Serial.print("SU | LOO | latitude is:           "); Serial.println(latitude);
-  Serial.print("SU | LOO | longitude is:          "); Serial.println(longitude);
+  Serial.print("SU | LOOP | numberOfSatellites is: "); Serial.println(numberOfSatellites);
+  Serial.print("SU | LOOP | hdop is:               "); Serial.println(hdop);
+  Serial.print("SU | LOOP | latitude is:           "); Serial.println(latitude);
+  Serial.print("SU | LOOP | longitude is:          "); Serial.println(longitude);
   Serial.println("");
   
   if(!didCentralSendConfirmation){
+    Serial.println(startTime);
     if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+      Serial.println("SU | LOOP | Scanning");
       ScanForCentral();
     }else{
+      Serial.println("SU | LOOP | Sending my type to central");
       sendMyTypeToCentral();
       delay(75);
     }
@@ -423,4 +427,5 @@ void loop() {
     sendData();
   }
   count++; 
+  delay(1000);
 }
