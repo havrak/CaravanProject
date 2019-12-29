@@ -181,13 +181,13 @@ class Weather{
     bool update(){
       
       EthernetClient client;
-      Serial.println("WEATHER | UPDATE");
+      //Serial.println("WEATHER | UPDATE");
       String result ="";
       if (!client.connect(servername, 80)) {
         Serial.println("WEATHER | update | Cannot connect to server");
         return false;
       }
-      Serial.println("WEATHER | update | GOT CONNECTION");
+      //Serial.println("WEATHER | update | GOT CONNECTION");
       // We now create a URI for the request
       String latStr = String(lat, 5);
       String lonStr = String(lon, 5);
@@ -215,7 +215,7 @@ class Weather{
           
       //String result = "{\"coord\":{\"lon\":14.4,\"lat\":50.16},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01d\"}],\"base\":\"stations\",\"main\":{\"temp\":295.02,\"pressure\":1023,\"humidity\":35,\"temp_min\":293.71,\"temp_max\":296.48},\"visibility\":10000,\"wind\":{\"speed\":2.6,\"deg\":280},\"clouds\":{\"all\":0},\"dt\":1567523276,\"sys\":{\"type\":1,\"id\":6848,\"message\":0.0082,\"country\":\"CZ\",\"sunrise\":1567484380,\"sunset\":1567532676},\"timezone\":7200,\"id\":3066636,\"name\":\"Roztoky\",\"cod\":200}";
       Serial.println(result);
-      Serial.println("WEATHER | GOT DATA");
+      //Serial.println("WEATHER | GOT DATA");
       // remove notation for array
       result.replace('[', ' ');
       result.replace(']', ' ');
@@ -224,10 +224,10 @@ class Weather{
       DeserializationError err = deserializeJson(jsonDoc, result);
           
       if (err != DeserializationError::Ok ){ // seems to work
-        Serial.println("WEATHER | update | DERSERIZATION FAILED");
+        //Serial.println("WEATHER | update | DERSERIZATION FAILED");
         return false; 
       }  
-      Serial.println("WEATHER | update | JSON CREATED");
+      //Serial.println("WEATHER | update | JSON CREATED");
           
       // need to use as<String>() syntex otherwise throws error, not sure why
       // error message:  ambiguous overload for 'operator=' (operand types are 'String' and 'ArduinoJson6114_000001::enable_if<true, ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*> >::type {aka ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*>}')
@@ -244,10 +244,10 @@ class Weather{
       windSpeed =  jsonDoc["wind"]["speed"].as<float>();
       clouds =  jsonDoc["clouds"]["all"].as<int>();
       setWindDirection();
-      Serial.println("WEATHER | update | FILLED STRINGS and NUMBERS");
+      //Serial.println("WEATHER | update | FILLED STRINGS and NUMBERS");
           
-      Serial.print("WEATHER | WeatherID: ");
-      Serial.println(weatherID);
+      //Serial.print("WEATHER | WeatherID: ");
+      //Serial.println(weatherID);
       // same serial is used for nextion as for debug
       startEndNextionCommand();
       return true;

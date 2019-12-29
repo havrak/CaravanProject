@@ -465,8 +465,8 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
 
   
   Serial.println();
-  Serial.print("CU | onDataRecv  | Last Packet Recv from: "); Serial.println(macStr);
-  Serial.print("CU | onDataRecv  | Last Packet Recv Data: "); Serial.println(data_len);
+  Serial.print("CU | onDataRecv  | Last Packet Recv from:   "); Serial.println(macStr);
+  Serial.print("CU | onDataRecv  | Last Packet Recv lenght: "); Serial.println(data_len);
   
     //printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr)
   byte temp = (*data-100);
@@ -703,12 +703,11 @@ void loop(){
     EEPROM.write(0,0); 
   }
   
-  /*
   if(interationCounter == 0){
     updateTime();
-    if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
-    weather.update();
-    weather.updateDataOnNextion(hour());
+    //if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
+    //weather.update();
+    ///weather.updateDataOnNextion(hour());
     interationCounter = 10;    
     pingEachSesnorUnit();
   }
@@ -718,7 +717,7 @@ void loop(){
   
   security.updateDataOnNextion();
   water.updateDataOnNextion();
-  */
+  
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

@@ -134,8 +134,7 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
     counter=0;
   }
   char macStr[18];
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.print("SU | onDataSent | Last Packet Sent to: "); Serial.println(macStr);
   Serial.print("SU | onDataSent | Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   
@@ -153,8 +152,8 @@ void sendData() {
   
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
-  Serial.print("SU | sendData | Size of packet will be:  "); Serial.println(sizeof(data));
   Serial.print("SU | sendData | Size of dataToBeSend is: "); Serial.println(sizeof(dataToBeSend));
+  
   esp_err_t result = esp_now_send(central.peer_addr, dataToBeSend, sizeof(dataToBeSend));
   
   Serial.print("SU | sendData | Send Status: ");
@@ -195,20 +194,22 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     if(checkIfTwoAddressesAreSame(potencialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potencialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potencialCentral wouldn't be empty
       Serial.println("SU | onDataRecv | Set up central");
       counter=0;
-      memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent
+      memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent,  sa d sa dsa sad 
       didCentralSendConfirmation = true;
       esp_err_t addStatus = esp_now_add_peer(&central);
-      memcpy(&central.peer_addr,&mac_addr,sizeof(mac_addr));
-      lastTimeDataRecived = 0;    
+      //memcpy(&central.peer_addr,&mac_addr,sizeof(central.peer_addr));
+      lastTimeDataRecived = millis();    
       Serial.print("SU | onDataRecv | Centrals mac address is: "); printAddress(central.peer_addr); Serial.println("");
       storeDataInEEPROM(); // save new central into EEPROM
     }else  {
-      Serial.println("SU | onDataRecv | got 88 from unit I wasn't expecting");  
+      Serial.println("SU | onDataRecv | got 92 from unit I wasn't expecting");  
     }
     //}
   }
-  
+  Serial.print("SU | onDataRecv | mac_addr:  "); Serial.println(macStr);
+  Serial.print("SU | onDataRecv | peer_addr: "); printAddress(central.peer_addr); Serial.println();
   if(checkIfTwoAddressesAreSame(mac_addr, central.peer_addr)){
+      Serial.println("SU | onDataRecv | got some data");
       lastTimeDataRecived = millis();
       if(*data != (uint8_t) 88){ // check if message is not just a ping
         // NEW CONFIGURATION IS PROCESSED HERE
@@ -252,6 +253,7 @@ void ScanForCentral() {
             startTime = millis();
             checkingAgaintsEEPROMmaster = false;
             sendMyTypeToCentral();
+            noOfAttempts = 0;
             if(!attempToPair()) startTime == -1;
           }
         }
@@ -317,11 +319,13 @@ bool attempToPair() {
 
 // if central didin't send anything for 30 second we will delete her
 void deleteUnactiveCentral(){
+  Serial.print("Time diffrence is: "); Serial.println(getTimeDiffrence(lastTimeDataRecived));
   if(getTimeDiffrence(lastTimeDataRecived) > 30000){
     Serial.println("SU | deleteUnactiveCentral | deleting");
     sendedIMyTypeToCentral = false;
     didCentralSendConfirmation = false;  
-    memcpy(&central, 0 , sizeof(central));
+    potencialCentral = emptyEspInfo;
+    central = emptyEspInfo;
     
     esp_err_t delStatus = esp_now_del_peer(central.peer_addr);
     Serial.print("SU | deleteUnactiveCentral | Slave Delete Status: ");
@@ -368,11 +372,11 @@ void setup() {
       }
       potencialCentral.channel = 1; // pick a channel
       potencialCentral.encrypt = 0;
+      Serial.print("SU | SETUP | Central address that i got from EEPROM is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
       if(attempToPair()){ 
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
       } // will already send request for confirmation
-      Serial.print("SU | SETUP | Central address that i got from EEPROM is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
   }
 }
   M5.begin();  
@@ -409,7 +413,6 @@ void loop() {
   Serial.println("");
   
   if(!didCentralSendConfirmation){
-    Serial.println(startTime);
     if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
       Serial.println("SU | LOOP | Scanning");
       ScanForCentral();
@@ -422,7 +425,7 @@ void loop() {
     deleteUnactiveCentral();  
   }
   
-  if(count % 3 == 0){
+  if(count % 3 == 0 && didCentralSendConfirmation){
     count = 0;
     sendData();
   }
