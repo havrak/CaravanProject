@@ -182,54 +182,69 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
   return true;
 }
 
+bool doesArrayAlreadyContainsType(SlaveTypes type){
+  for(int i = 0; i < slaveTypesNumber; i++) if(slaveTypes[i] == type) return true;
+  return false;
+}
+
 // adds new entry into slaveTypes and espInfo, used after unit send its type
 void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
   for(int i = 0; i < slaveTypesNumber; i++){
     if(slaveTypes[i] == EMPTY){
       switch(type){
         case 1:
+          if(doesArrayAlreadyContainsType(SECURITY)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
           slaveTypes[i] = SECURITY;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo)); // copies data to array
           Serial.println("CU | addNewSlaveToArray | Added SECURITY ESP32");
           security.setEstablishedConnection(true); security.updateLastTimeRecived(); sendConformationToUnit(i);
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
           Serial.print(", MAC address of security is "); printAddress(espInfo[i].peer_addr);
+          storeUnitInEEPROM(espInfo[i], 1);
           i = slaveTypesNumber;
           break;
         case 2:
+          if(doesArrayAlreadyContainsType(WATER)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
           slaveTypes[i] = WATER;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added WATER ESP32");
           water.setEstablishedConnection(true); water.updateLastTimeRecived();
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of water is "); printAddress(espInfo[i].peer_addr);
+          storeUnitInEEPROM(espInfo[i], 2);
           i = slaveTypesNumber;
           break;
         case 3:
+        if(doesArrayAlreadyContainsType(WHEELS)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
           slaveTypes[i] = WHEELS;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added WHEELS ESP32");
           wheels.setEstablishedConnection(true); wheels.updateLastTimeRecived();
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of wheels is "); printAddress(espInfo[i].peer_addr);
+          storeUnitInEEPROM(espInfo[i], 3);
           i = slaveTypesNumber;
           break;
         case 4:
+          if(doesArrayAlreadyContainsType(HEATING)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
           slaveTypes[i] = HEATING;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added HEATING ESP32");
           heating.setEstablishedConnection(true); heating.updateLastTimeRecived();   
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of heating is "); printAddress(espInfo[i].peer_addr);
+          storeUnitInEEPROM(espInfo[i], 4);
           i = slaveTypesNumber;
           break;
         case 5:
+          if(doesArrayAlreadyContainsType(POWER)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
           slaveTypes[i] = POWER;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
           Serial.println("CU | addNewSlaveToArray | Added POWER ESP32");
           power.setEstablishedConnection(true); power.updateLastTimeRecived();
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); sendConformationToUnit(i);
           Serial.print(", MAC address of power is "); printAddress(espInfo[i].peer_addr);
+          storeUnitInEEPROM(espInfo[i], 5);
           i = slaveTypesNumber;
           break;
       }
@@ -408,11 +423,21 @@ void sendConformationToUnit(byte indexInEspInfo){
 }
 
 // first byte in/off EEPROM, 1 - 6 is masters mac
-void storeDataInEEPROM(){
+void storeUnitInEEPROM(esp_now_peer_info toStore, uint8_t type){ // will be called after new unit was addded
   if(EEPROM.read(0) == 0){ // limited number of writes
       EEPROM.write(0,1);
   }
-
+  for(int i = 1 ; i < (slaveTypesNumber*7+1); i++){
+    if(EEPROM.read(i) == 0){
+      EEPROM.write(i, type);
+      for(int j=i+1; j <= i+6; j++ ) EEPROM.write(j,toStore.peer_addr[j-i-1]); // store new data into EEPROM
+    }else if(EEPROM.read(i) == type){
+      uint8_t test[6];
+      bool change = false;
+      for(int j=i+1 ; j <= i+6; j++ ) if(toStore.peer_addr[j-i-1] != (uint8_t) EEPROM.read(j)){ change = true; break;} // check if address stored is different
+      if(change) for(int j=i+1; j <= i+6; j++ ) EEPROM.write(j,toStore.peer_addr[j-i-1]); // store new data into EEPROM
+    }
+  }
   // check if data is same
   EEPROM.commit();
 }
@@ -422,7 +447,20 @@ bool loadDataFromEEPROM(){
     Serial.println("CU | loadDataFromEEPROM | EEPROM is empty");
     return false;
   }else{
-
+    for(int i = 1; i < (slaveTypesNumber*7+1); i += 7){
+      uint8_t type = EEPROM.read(i);
+      esp_now_peer_info_t temp;
+      temp.channel = 1;
+      temp.encrypt = 0;
+      for(int j = i+1; j <= i+6; j++){
+        temp.peer_addr[j-i-1] = (uint8_t) EEPROM.read(j);
+      }
+      if(getSlaveTypeForMAC(temp.peer_addr) == EMPTY){
+         addNewUnitToArray(temp, type);
+      }else{
+        Serial.println("CU | loadDataFromEEPROM | we already know that unit");  
+      }
+    }
     
     bool checkingAgaintsEEPROMmaster = true;
     return true;
@@ -531,35 +569,26 @@ void removeUnit(SlaveTypes type){
 void removeUnactiveUnits(){
   // checks if millis was reseted
   // if thats case all lastTimeRecived will be set to new value
-  if(millis() < millisOfLastDataRecv){
-      millisOfLastDataRecv = millis();
-      security.updateLastTimeRecived();
-      water.updateLastTimeRecived();
-      wheels.updateLastTimeRecived();
-      heating.updateLastTimeRecived();
-      power.updateLastTimeRecived(); 
-  }else{
-     // delets only if connectionWasEstablished (since lastTimeRecived can be set, thanks to if statem just above, without recivining any data)
-    if(millis() - security.getLastTimeRecived() > 240000 && security.getEstablishedConnection()){
-      removeUnit(SECURITY);
-      security.setEstablishedConnection(false);
-    }
-    if(millis() - water.getLastTimeRecived() > 240000 && water.getEstablishedConnection()){
-      removeUnit(WATER);
-      water.setEstablishedConnection(false);
-    }
-    if(millis() - wheels.getLastTimeRecived() > 240000 && wheels.getEstablishedConnection()){
-      removeUnit(WHEELS);
-      wheels.setEstablishedConnection(false);
-    }
-    if(millis() - heating.getLastTimeRecived() > 240000 && heating.getEstablishedConnection()){
-      removeUnit(HEATING);
-      heating.setEstablishedConnection(false);
-    }
-    if(millis() - power.getLastTimeRecived() > 240000 && power.getEstablishedConnection()){
-      removeUnit(POWER);
-      power.setEstablishedConnection(false);
-    }
+  // delets only if connectionWasEstablished (since lastTimeRecived can be set, thanks to if statem just above, without recivining any data)
+  if(getTimeDiffrence(security.getLastTimeRecived()) > 240000 && security.getEstablishedConnection()){
+    removeUnit(SECURITY);
+    security.setEstablishedConnection(false);
+  }
+  if(getTimeDiffrence(water.getLastTimeRecived()) > 240000 && water.getEstablishedConnection()){
+    removeUnit(WATER);
+    water.setEstablishedConnection(false);
+  }
+  if(getTimeDiffrence(wheels.getLastTimeRecived()) > 240000 && wheels.getEstablishedConnection()){
+    removeUnit(WHEELS);
+    wheels.setEstablishedConnection(false);
+  }
+  if(getTimeDiffrence(heating.getLastTimeRecived()) > 240000 && heating.getEstablishedConnection()){
+    removeUnit(HEATING);
+    heating.setEstablishedConnection(false);
+  }
+  if(getTimeDiffrence(power.getLastTimeRecived()) > 240000 && power.getEstablishedConnection()){
+    removeUnit(POWER);
+    power.setEstablishedConnection(false);
   }
 }
 
@@ -593,10 +622,7 @@ void updateTime(){
   int   triesTime = millis();
   Serial.println("TIME | UPDATING");
   //timeClient.setTimeOffset(setOffSetForSummerTime());
-  while(!timeClient.update() && tries < 5 && millis() - triesTime < 5000) {
-    if(millis() - triesTime < 0){
-      triesTime = millis();
-    }
+  while(!timeClient.update() && tries < 5 && getTimeDiffrence(triesTime) < 5000) {
     timeClient.forceUpdate();
     Serial.println("TIME | UPDATED");
     tries++;
@@ -717,11 +743,10 @@ void loop(){
   }
   if (M5.BtnB.wasReleased() && EEPROM.read(0) == 1) {
       EEPROM.write(0,0); 
-  }//if(pairingMode){
+  }
+  //if(pairingMode){
   //  sendConformationToEachUnit();
   //};
-  delay(1000);
-  // TODO: update only some iterations
   
   if(interationCounter == 0){
     Serial.println("CU | LOOP | COUNTER HIT");
@@ -744,4 +769,5 @@ void loop(){
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;
+  delay(500);
 }

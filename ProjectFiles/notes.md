@@ -7,6 +7,11 @@ gps.location.lat()
 gps.location.lng()
 i
 
+prochází po 7 jestli nenajde uložené svoje číslo,
+pokud narazí na nulu tak uloží
+pokud narazí na svoje číslo, tak si přečte mac a porovná
+	pokud je jiný tak uloží, poikud je stejný tak nic nedělá
+
 
 načtená data z EEPROM -- centrála si načte, pošle jednotce 88, ta si mac porovná s uloženým, pokud není inicializovaná EEPROM tak nastaví na mastera rovnou
 
