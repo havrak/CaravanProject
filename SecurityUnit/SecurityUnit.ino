@@ -7,16 +7,19 @@
 #include <WiFi.h>
 #include <EEPROM.h>
 #include <TinyGPS++.h>
-// TODO: check size, check if EEPROM size is in bytes/bits
-#define EEPROM_SIZE 256
+#define EEPROM_SIZE 7
+bool isDataInEEPROM = false; //-- z EEPROM načte mastera 
+
 #define CHANNEL 1
 
 
 esp_now_peer_info_t central;
 esp_now_peer_info_t potentialCentral;
+//esp_now_peer;
 
 bool sendedIMyTypeToCentral = false;
 bool didCentralSendConfirmation = false;
+bool checkingAgaintsEEPROMmaster = false;
 uint8_t central_addr;
 byte noOfAttempts = 0;
 
@@ -67,14 +70,15 @@ void initESPNow() {
   }
 }
 
-// counting speed is diffrent than what it should be
-// what to set when water is refiling
+// first byte in/off EEPROM, 1 - 6 is masters mac
 void storeDataInEEPROM(){
-
-}
-
-void loadDataFromEEPROM(){
-
+  if(EEPROM.read(0) == 0){ // limited number of writes
+      EEPROM.write(0,1);
+  }
+ 
+ 
+  // check if data is same
+  EEPROM.commit();
 }
 
 int counter = 0;
@@ -147,7 +151,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   // add protection
   
   if (*data == (uint8_t) 92){
-    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr)){ // prevent hijack of unit (very simple way)
+    if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr)){
       Serial.print("SU | onDataRecv | Set up central");
       central.channel = 1;
       central.encrypt = 0;
@@ -171,7 +175,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   }
 }
 
-unsigned long startTime = -1; // we give 10 seconds to central to respod, then we will try diffrent cenral with same name
+long startTime = -1; // we give 10 seconds to central to respod, then we will try diffrent cenral with same name, values wont be so big that we would have to worry about unsigned long max size is bigger
 
 
 void ScanForCentral() {
@@ -199,7 +203,7 @@ void ScanForCentral() {
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          if(startTime == -1 || ( (getTimeDiffrence(startTime) > 10000) && checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr) )){
+          if(startTime == -1 || ( (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 30000 : 10000)) && !checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr) )){
             // we have mac, now we create temp slave and attemp to pair
             for (int ii = 0; ii < 6; ++ii ) {
               potentialCentral.peer_addr[ii] = (uint8_t) mac[ii];
@@ -211,6 +215,7 @@ void ScanForCentral() {
           
             attempToPair();
             startTime = millis();
+            checkingAgaintsEEPROMmaster = false;
           }
         }
       }
@@ -294,17 +299,16 @@ void sendMyTypeToCentral(){
   }
 }
 
+// if central didin't send anything for 30 second we will delete her
 void deleteUnactiveCentral(){
-  if(millis() < lastTimeDataRecived){
-    lastTimeDataRecived = millis();
-    
-  }else if(millis() - lastTimeDataRecived > 240000){
-    bool sendedIMyTypeToCentral = false;
-    uint8_t central_addr = 0;  
+  if(getTimeDiffrence(lastTimeDataRecived) > 30000){
+    Serial.println("SU | deleteUnactiveCentral | deleting");
+    sendedIMyTypeToCentral = false;
+    didCentralSendConfirmation = false;  
     memcpy(&central, 0 , sizeof(central));
     
     esp_err_t delStatus = esp_now_del_peer(central.peer_addr);
-    Serial.print("Slave Delete Status: ");
+    Serial.print("SU | deleteUnactiveCentral | Slave Delete Status: ");
     if (delStatus == ESP_OK) {
       // Delete success
       Serial.println("Success");
@@ -333,9 +337,21 @@ void setup() {
   esp_now_register_send_cb(onDataSent);
   
   
-
-  
-  
+  if (!EEPROM.begin(EEPROM_SIZE)){
+    // we can't read from EEPROM
+    Serial.println("CU | SETUP | failed to initialize EEPROM");
+  }else{
+    if(EEPROM.read(0) == 0){
+      Serial.println("CU | loadDataFromEEPROM | EEPROM is empty");
+    }else{
+      for (int i = 0; i < 6; ++i ) {
+        potentialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
+      }
+      potentialCentral.channel = 1; // pick a channel
+      potentialCentral.encrypt = 0;
+      checkingAgaintsEEPROMmaster = true;
+  }
+}
   M5.begin();  
   M5.Lcd.setTextColor(TFT_YELLOW);
   M5.Lcd.setFreeFont(FSB12);   
@@ -380,9 +396,11 @@ void loop() {
   Serial.print("latitude is:           "); Serial.println(latitude);
   Serial.print("longitude is:          "); Serial.println(longitude);
   
-  deleteUnactiveCentral();
+  
   if(!didCentralSendConfirmation){
     ScanForCentral();
+  }else{
+    deleteUnactiveCentral();  
   }
   
   if(count % 3 == 0){

@@ -26,7 +26,7 @@
 #include "Temperatures.h"
 #include "Weather.h"
 
-#define EEPROM_SIZE 1   // define EEPROM size
+#define EEPROM_SIZE 36   // define EEPROM size -- laveTypesNumber * 7 -- 1 for type (1,2,3,4....), 6 for mac, first byte for declering if something is stored
 #define SCK 18
 #define MISO 19
 #define MOSI 23
@@ -44,11 +44,11 @@ char stringnum = 0;
 //unsigned long Rec_num = 0;
 //unsigned long Rec_Num_Ok = 0;
 
-WebServer server(80);      // worked
+WebServer server(80); 
 
-EthernetUDP Udp;               // worked
-NTPClient timeClient(Udp, "europe.pool.ntp.org", 3600); // worked
-bool pairingMode = true;
+EthernetUDP Udp;
+NTPClient timeClient(Udp, "europe.pool.ntp.org", 3600); 
+bool pairingMode = true; // will effectt whether device starts in pairing mode
 
 
 TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
@@ -407,6 +407,28 @@ void sendConformationToUnit(byte indexInEspInfo){
   
 }
 
+// first byte in/off EEPROM, 1 - 6 is masters mac
+void storeDataInEEPROM(){
+  if(EEPROM.read(0) == 0){ // limited number of writes
+      EEPROM.write(0,1);
+  }
+
+  // check if data is same
+  EEPROM.commit();
+}
+
+bool loadDataFromEEPROM(){
+  if(EEPROM.read(0) == 0){
+    Serial.println("CU | loadDataFromEEPROM | EEPROM is empty");
+    return false;
+  }else{
+
+    
+    bool checkingAgaintsEEPROMmaster = true;
+    return true;
+  }
+}
+
 
 // callback for when data is recived from sensor unit
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
@@ -637,7 +659,7 @@ void setup(){
   // get the status of Trasnmitted packet
   //esp_now_register_send_cb(onDataSent);
   //esp_now_register_recv_cb(onDataRecv);
-
+  
   SPI.begin(SCK, MISO, MOSI, -1);
   delay(1000);
   Ethernet.init(CS);
@@ -668,6 +690,14 @@ void setup(){
   M5.Lcd.println("on start");
   M5.Lcd.println("Press button B for 300ms");
   M5.Lcd.println("to clear EEPROM");
+
+  if (!EEPROM.begin(EEPROM_SIZE)){
+    // we can't read from EEPROM
+    Serial.println("CU | SETUP | failed to initialize EEPROM");
+  }else{
+    loadDataFromEEPROM();
+  }
+  
   
   timeClient.begin();
   //updateTime();
@@ -685,7 +715,9 @@ void loop(){
     configDeviceAP();
     Serial.println("Btn pressed");
   }
-  //if(pairingMode){
+  if (M5.BtnB.wasReleased() && EEPROM.read(0) == 1) {
+      EEPROM.write(0,0); 
+  }//if(pairingMode){
   //  sendConformationToEachUnit();
   //};
   delay(1000);
