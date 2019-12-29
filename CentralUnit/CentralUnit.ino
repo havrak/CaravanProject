@@ -1,8 +1,6 @@
 /*
     Code for central unit, runs on OLIMEX Gateway
 */
-
-//#include <ETH.h>        // for ethernet to work
 #include <esp_now.h>    // for enabling ESP NOW wich is used to communicate with units
 #include <WiFi.h>       // for ESP NOW
 #include <SPI.h>        // for ethernet
@@ -116,6 +114,14 @@ void startEndNextionCommand(){
   Serial2.write(0xff);
   Serial2.write(0xff);
   Serial2.write(0xff);
+}
+
+// millis() counter resets every 50 days, gives time diffrence between millis() and sTime in argument
+unsigned long getTimeDiffrence(unsigned long sTime){
+  if(millis() < sTime){
+    return (ULONG_MAX - sTime) + millis();
+  }
+  return millis() - sTime;
 }
 
 // returns esp info that corresponds with given type (must be in arrays)
@@ -261,46 +267,6 @@ void handleNotFound() {
   server.send(404, "text/plain", message);
 }
 
-
-// callback for WiFiEvent
-/*
-void WiFiEvent(WiFiEvent_t event){
-  switch (event) {
-    case SYSTEM_EVENT_ETH_START:
-      Serial.println("ETH Started");
-      //set eth hostname here
-//      ETH.setHostname("esp32-ethernet");
-      break;
-    case SYSTEM_EVENT_ETH_CONNECTED:
-      Serial.println("ETH Connected");
-      break;
-    case SYSTEM_EVENT_ETH__IP:
-      Serial.print("ETH MAC: ");
-      Serial.print(ETH.macAddress());
-      Serial.print(", IPv4: ");
-      Serial.print(ETH.localIP());
-      if (ETH.fullDuplex()) {
-        Serial.print(", FULL_DUPLEX");
-      }
-      Serial.print(", ");
-      Serial.print(ETH.linkSpeed());
-      Serial.println("Mbps");
-      ethConnected = true;
-      break;
-    case SYSTEM_EVENT_ETH_DISCONNECTED:
-      Serial.println("ETH Disconnected");
-      ethConnected = false;
-      break;
-    case SYSTEM_EVENT_ETH_STOP:
-      Serial.println("ETH Stopped");
-      ethConnected = false;
-      break;
-    default:
-      break;
-  }
-}
-*/
-
 // Inits ESPNow
 void initESPNow() {
   WiFi.disconnect();
@@ -314,21 +280,25 @@ void initESPNow() {
 }
 
 void configDeviceAP() {
-  
+  WiFi.softAPdisconnect(1);
   const char *SSID = "CARAVAN_CENTRAL_UNIT";
-  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, 0);
+  bool result = WiFi.softAP(SSID, "supersecretpassword", CHANNEL, pairingMode);
   if (!result) {
     Serial.println("AP Config failed.");
   } else {
     Serial.println("AP Config Success. Broadcasting with AP: " + String(SSID));
   }
-  
-}
-
-
-// adjust number in case millis overflow happend 
-long adujistNumberIfTimeOverFlowed(long toBeAdjusted){
-  return ULONG_MAX - toBeAdjusted + millis();
+  initESPNow();
+  esp_now_register_send_cb(onDataSent);
+  esp_now_register_recv_cb(onDataRecv);
+  for(int i = 0; i < slaveTypesNumber; i++){ // after ESPNow init we need to repair with each unit
+    if(slaveTypes[i] != EMPTY){
+      esp_err_t addStatus = esp_now_add_peer(&espInfo[i]);
+      if (addStatus != ESP_OK) {
+        Serial.print("Pairing after reciving data failed, tried to pair with: "); Serial.println(int(slaveTypes[i]));
+      }
+    }
+  }
 }
 
 // remove peer (unpair)
@@ -461,21 +431,17 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     //}
     if(getSlaveTypeForMAC(mac_addr) == EMPTY){
       delay(10);
-      esp_now_info_t toAdd;
-      
-      toAdd.peer_addr = mac_addr;
+      esp_now_peer_info_t toAdd;
+      memcpy(toAdd.peer_addr, mac_addr, sizeof(toAdd.peer_addr));
       toAdd.channel = 1;
       toAdd.encrypt = 0;
-      esp_err_t addStatus = esp_now_add_peer(&potentialCentral);
-      if (addStatus == ESP_OK) {
-        Serial.println("Paired");
+      esp_err_t addStatus = esp_now_add_peer(&toAdd);
+      if (addStatus != ESP_OK) {
+        Serial.print("Pairing after reciving data failed, tried to pair with: "); Serial.println(temp);
       }
       
       addNewUnitToArray(toAdd, temp);
       wasUnitAdded = true;
-      
-      uint8_t data = 101;
-      esp_err_t result = esp_now_send(potentialCentral.peer_addr, &data, sizeof(data));
     }else{
       sendConformationToUnit(getIndexInSlaveTypes(getSlaveTypeForMAC(mac_addr))); // unit will beg for confromation with each scan so 
     }
@@ -658,20 +624,19 @@ void setup(){
   //Serial2.end();  // End the serial comunication of baud=9600
   //Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200
   while (!Serial);
-//  WiFi.onEvent(WiFiEvent);
-//  ETH.begin();
+  
   WiFi.mode(WIFI_AP_STA);
   // This is the mac address of the Master in Station Mode
   configDeviceAP();
-  Serial.print("AP MAC: "); Serial.println(WiFi.softAPmacAddress());
+  Serial.print("CU | AP MAC: "); Serial.println(WiFi.softAPmacAddress());
 
   Serial.println("CU | SETUP | NETWORKING");
   // Init ESPNow with a fallback logic
-  initESPNow();
+  //initESPNow();
   // Once ESPNow is successfully Init, we will register for Send CB to
   // get the status of Trasnmitted packet
-  esp_now_register_send_cb(onDataSent);
-  esp_now_register_recv_cb(onDataRecv);
+  //esp_now_register_send_cb(onDataSent);
+  //esp_now_register_recv_cb(onDataRecv);
 
   SPI.begin(SCK, MISO, MOSI, -1);
   delay(1000);
@@ -679,19 +644,10 @@ void setup(){
   delay(1000); 
   Ethernet.begin(mac, ip, dnsss, gw , nm);
   Udp.begin(8888);
-  
-  Serial.println("CU | SETUP | ESP32");
-  for(int i = 0; i< 20; i++){
-    for(int j = 0; i <6; i++){
-        untypedPeers[i].peer_addr[j] = emptyInfo.peer_addr[j];
-      }
-  }
 
   for(int i = 0; i < slaveTypesNumber; i++){
     slaveTypes[i] = EMPTY;
   }
-  
-  Serial.println("CU | SETUP | PREPARED ARRAYS");
   /*
   server.on("/", handleRoot);
   server.on("/inline", []() {
@@ -706,9 +662,12 @@ void setup(){
   M5.Lcd.setTextColor(YELLOW);
   M5.Lcd.setTextSize(2);
   M5.Lcd.setCursor(3, 35);
+  M5.Lcd.println("Press button A for 300ms");
+  M5.Lcd.println("to enter/exit pairing mode");
+  M5.Lcd.println("!! Pairing mode si on");
+  M5.Lcd.println("on start");
   M5.Lcd.println("Press button B for 300ms");
-  M5.Lcd.println("to enter or exit pairing mode");
-  M5.Lcd.println("DEVICE STARTS IN PAIRING MODE");
+  M5.Lcd.println("to clear EEPROM");
   
   timeClient.begin();
   //updateTime();

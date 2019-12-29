@@ -47,6 +47,14 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
   return true;
 }
 
+// millis() counter resets every 50 days, gives time diffrence between millis() and sTime in argument
+unsigned long getTimeDiffrence(unsigned long sTime){
+  if(millis() < sTime){
+    return (ULONG_MAX - sTime) + millis();
+  }
+  return millis() - sTime;
+}
+
 // Init ESP Now with fallback
 void initESPNow() {
   WiFi.disconnect();
@@ -191,7 +199,7 @@ void ScanForCentral() {
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          if(startTime == -1 || (millis() - startTime > 10 000 && checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr))  ){
+          if(startTime == -1 || ( (getTimeDiffrence(startTime) > 10000) && checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr) )){
             // we have mac, now we create temp slave and attemp to pair
             for (int ii = 0; ii < 6; ++ii ) {
               potentialCentral.peer_addr[ii] = (uint8_t) mac[ii];
@@ -213,8 +221,8 @@ void ScanForCentral() {
   WiFi.scanDelete();
 }
 
-void attempToPair() {
-  Serial.print("Processing: ");
+bool attempToPair() {
+  Serial.print("SU | attempToPair | Processing: ");
   
   for (int ii = 0; ii < 6; ++ii ) {
     Serial.print((uint8_t) potentialCentral.peer_addr[ii], HEX);
@@ -264,25 +272,25 @@ void attempToPair() {
 
 // 
 void sendMyTypeToCentral(){
-  Serial.print("sending my type to central");
+  Serial.print("SU | sendMyTypeToCentral | sending my type to central");
   uint8_t data = 101;
   esp_err_t result = esp_now_send(potentialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
-  Serial.print("Send Status: ");
+  Serial.print("SU | sendMyTypeToCentral | Send Status: ");
   if (result == ESP_OK) {
-    Serial.println("Success");
+    Serial.println("SU | sendMyTypeToCentral | Success");
   } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
     initESPNow();
-    Serial.println("ESPNOW not Init.");
+    Serial.println("SU | sendMyTypeToCentral | ESPNOW not Init.");
   } else if (result == ESP_ERR_ESPNOW_ARG) {
-    Serial.println("Invalid Argument");
+    Serial.println("SU | sendMyTypeToCentral | Invalid Argument");
   } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
-    Serial.println("Internal Error");
+    Serial.println("SU | sendMyTypeToCentral | Internal Error");
   } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
-    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
+    Serial.println("SU | sendMyTypeToCentral | ESP_ERR_ESPNOW_NO_MEM");
   } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-    Serial.println("Peer not found.");
+    Serial.println("SU | sendMyTypeToCentral | Peer not found.");
   } else {
-    Serial.println("Not sure what happened");
+    Serial.println("SU | sendMyTypeToCentral | Not sure what happened");
   }
 }
 
@@ -316,9 +324,9 @@ void setup() {
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
   //Set device in AP mode to begin with
-  WiFi.mode(WIFI_STA);;w
+  WiFi.mode(WIFI_STA);
   // This is the mac address of the Slave in AP Mode
-  Serial.print("AP MAC: "); Serial.println(WiFi.softAPmacAddress());
+  Serial.print("SU | STA MAC: "); Serial.println(WiFi.macAddress());
   // Init ESPNow with a fallback logic
   initESPNow();
   esp_now_register_recv_cb(onDataRecv);
