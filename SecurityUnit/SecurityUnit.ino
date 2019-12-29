@@ -21,12 +21,10 @@ bool didCentralSendConfirmation = false;
 bool checkingAgaintsEEPROMmaster = false;
 bool isEEPROMinitialized = false;
 
-//uint8_t central_addr;
 byte noOfAttempts = 0;
 
 TinyGPSPlus gps;
 
-bool eepromOn = false;
 int lastTimeDataRecived = 0;
 uint32_t numberOfSatellites;
 double latitude;
@@ -182,13 +180,11 @@ void sendData() {
 // also sets up central, in case central asks again than address will be set up again for new central
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
-  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
-           mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
+  snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.println(*mac_addr);
   Serial.print("SU | onDataRecv | Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("SU | onDataRecv | Last Packet Recv Data: "); Serial.println(*data);
 
-  // add protection
   
   if (*data == (uint8_t) 92){
     if(checkIfTwoAddressesAreSame(potencialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potencialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potencialCentral wouldn't be empty
@@ -197,17 +193,13 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent,  sa d sa dsa sad 
       didCentralSendConfirmation = true;
       esp_err_t addStatus = esp_now_add_peer(&central);
-      //memcpy(&central.peer_addr,&mac_addr,sizeof(central.peer_addr));
       lastTimeDataRecived = millis();    
       Serial.print("SU | onDataRecv | Centrals mac address is: "); printAddress(central.peer_addr); Serial.println("");
       storeDataInEEPROM(); // save new central into EEPROM
     }else  {
       Serial.println("SU | onDataRecv | got 92 from unit I wasn't expecting");  
     }
-    //}
   }
-  Serial.print("SU | onDataRecv | mac_addr:  "); Serial.println(macStr);
-  Serial.print("SU | onDataRecv | peer_addr: "); printAddress(central.peer_addr); Serial.println();
   if(checkIfTwoAddressesAreSame(mac_addr, central.peer_addr)){
       Serial.println("SU | onDataRecv | got some data");
       lastTimeDataRecived = millis();
@@ -226,8 +218,6 @@ void ScanForCentral() {
   if (scanResults == 0) {
     Serial.println("SU | ScanForCentral | No WiFi devices in AP Mode found");
   } else {
-    //Serial.print("Found "); Serial.print(scanResults); Serial.println(" devices ");
-
     for (int i = 0; i < scanResults; ++i) {
       // Print SSID and RSSI for each device found
       String SSID = WiFi.SSID(i);
@@ -260,10 +250,10 @@ void ScanForCentral() {
       }
     }
   }
-  // clean up ram
   WiFi.scanDelete();
 }
 
+// tryes to pair with potencialCentral
 bool attempToPair() {
   Serial.print("SU | attempToPair | Processing: ");
   
@@ -315,11 +305,8 @@ bool attempToPair() {
   
 }
 
-
-
 // if central didin't send anything for 30 second we will delete her
 void deleteUnactiveCentral(){
-  Serial.print("Time diffrence is: "); Serial.println(getTimeDiffrence(lastTimeDataRecived));
   if(getTimeDiffrence(lastTimeDataRecived) > 30000){
     Serial.println("SU | deleteUnactiveCentral | deleting");
     sendedIMyTypeToCentral = false;
@@ -376,7 +363,7 @@ void setup() {
       if(attempToPair()){ 
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
-      } // will already send request for confirmation
+      }
   }
 }
   M5.begin();  

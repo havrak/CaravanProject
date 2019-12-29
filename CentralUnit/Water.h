@@ -13,7 +13,7 @@ class Water : public UnitAbstract{
     }
     
     void updateDataOnNextion(){
-      Serial.println("WATER | updateDataOnNextion");
+      Serial.print("WATER | updateDataOnNextion");
       String command;
       if(data.connectionToWaterSource){
         startEndNextionCommand(); 
