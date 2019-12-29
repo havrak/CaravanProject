@@ -42,7 +42,6 @@ struct SendRecvDataStruct{
 
 boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
   if(sizeof(addr1) != sizeof(addr2)){
-    Serial.println("diffrent size");
     return false;
   }
   for(int i = 0; i < (sizeof(addr1)/sizeof(addr1[0])); i++){
@@ -63,10 +62,10 @@ unsigned long getTimeDiffrence(unsigned long sTime){
 void initESPNow() {
   WiFi.disconnect();
   if (esp_now_init() == ESP_OK) {
-    Serial.println("ESPNow Init Success");
+    Serial.println("SU | initESPNow | ESPNow Init Success");
   }
   else {
-    Serial.println("ESPNow Init Failed");
+    Serial.println("SU | initESPNow | ESPNow Init Failed");
     ESP.restart();
   }
 }
@@ -117,7 +116,7 @@ void sendMyTypeToCentral(){
 int counter = 0;
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   if(status != ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral && counter <10){ // try until data is send successfully
-    Serial.println("Sending info failed");
+    Serial.println("SU | onDataSent | Sending info failed");
     delay(100);
     sendMyTypeToCentral();
     counter++;
@@ -128,14 +127,14 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
-  Serial.print("Last Packet Sent to: "); Serial.println(macStr);
-  Serial.print("Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
+  Serial.print("SU | onDataSent | Last Packet Sent to: "); Serial.println(macStr);
+  Serial.print("SU | onDataSent | Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
   
 }
 
 void sendData() {
   Serial.println();
-  Serial.println("Sending data");
+  Serial.println("SU | sendData | Sending data");
   SendRecvDataStruct data;
   
   data.hdop = hdop;
@@ -145,11 +144,11 @@ void sendData() {
   
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
-  Serial.print("Size of packet will be:  "); Serial.println(sizeof(data));
-  Serial.print("Size of dataToBeSend is: "); Serial.println(sizeof(dataToBeSend));
+  Serial.print("SU | sendData | Size of packet will be:  "); Serial.println(sizeof(data));
+  Serial.print("SU | sendData | Size of dataToBeSend is: "); Serial.println(sizeof(dataToBeSend));
   esp_err_t result = esp_now_send(central.peer_addr, dataToBeSend, sizeof(dataToBeSend));
   
-  Serial.print("Send Status: ");
+  Serial.print("SU | sendData | Send Status: ");
   if (result == ESP_OK) {
     Serial.println("Success");
   } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
@@ -178,16 +177,14 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x",
            mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.println(*mac_addr);
-  Serial.print("Last Packet Recv from: "); Serial.println(macStr);
-  Serial.print("Last Packet Recv Data: "); Serial.println(*data);
+  Serial.print("SU | onDataRecv | Last Packet Recv from: "); Serial.println(macStr);
+  Serial.print("SU | onDataRecv | Last Packet Recv Data: "); Serial.println(*data);
 
   // add protection
   
   if (*data == (uint8_t) 92){
     if(checkIfTwoAddressesAreSame(potentialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potentialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potentialCentral wouldn't be empty
       Serial.print("SU | onDataRecv | Set up central");
-      central.channel = 1;
-      central.encrypt = 0;
       counter=0;
       memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent
       sendedIMyTypeToCentral = false;
@@ -216,7 +213,7 @@ void ScanForCentral() {
   int8_t scanResults = WiFi.scanNetworks();
   Serial.println("");
   if (scanResults == 0) {
-    Serial.println("No WiFi devices in AP Mode found");
+    Serial.println("SU | ScanForCentral | No WiFi devices in AP Mode found");
   } else {
     //Serial.print("Found "); Serial.print(scanResults); Serial.println(" devices ");
 
@@ -237,23 +234,18 @@ void ScanForCentral() {
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          if(startTime == -1 || ( (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 30000 : 10000)) && !checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr) )){
-            // we have mac, now we create temp slave and attemp to pair
-            for (int ii = 0; ii < 6; ++ii ) {
-              potentialCentral.peer_addr[ii] = (uint8_t) mac[ii];
-            }
-          
-            potentialCentral.channel = 1; // pick a channel
+          if(!checkIfTwoAddressesAreSame(potentialCentral.peer_addr, temp.peer_addr)){
+            memcpy(potentialCentral.peer_addr, temp.peer_addr, sizeof(temp.peer_addr));
+            potentialCentral.channel = 1;
             potentialCentral.encrypt = 0;
             // attempts to pair to found slave
-          
             attempToPair();
             startTime = millis();
             checkingAgaintsEEPROMmaster = false;
+            sendMyTypeToCentral();
           }
         }
       }
-      sendMyTypeToCentral();
     }
   }
   // clean up ram
@@ -344,7 +336,7 @@ void setup() {
   //Set device in AP mode to begin with
   WiFi.mode(WIFI_STA);
   // This is the mac address of the Slave in AP Mode
-  Serial.print("SU | STA MAC: "); Serial.println(WiFi.macAddress());
+  Serial.print("SU | SETUP | STA MAC: "); Serial.println(WiFi.macAddress());
   // Init ESPNow with a fallback logic
   initESPNow();
   esp_now_register_recv_cb(onDataRecv);
@@ -357,15 +349,17 @@ void setup() {
   }else{
     isEEPROMinitialized = true;
     if(EEPROM.read(0) == 0){
-      Serial.println("CU | loadDataFromEEPROM | EEPROM is empty");
+      Serial.println("CU | SETUP | EEPROM is empty");
     }else{
       for (int i = 0; i < 6; ++i ) {
         potentialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
       }
       potentialCentral.channel = 1; // pick a channel
       potentialCentral.encrypt = 0;
-      checkingAgaintsEEPROMmaster = true;
-      attempToPair(); // will already send request for confirmation
+      if(attempToPair()){ 
+        checkingAgaintsEEPROMmaster = true;
+        startTime = millis();
+      } // will already send request for confirmation
   }
 }
   M5.begin();  
@@ -389,8 +383,7 @@ static void printInt(unsigned long val, bool valid, int len)
   smartDelay(0);
 }
 
-// This custom version of delay() ensures that the gps object
-// is being "fed".
+// This custom version of delay() ensures that the gps object is being "fed".
 
 static void smartDelay(unsigned long ms){
   unsigned long start = millis();
@@ -407,14 +400,20 @@ void loop() {
   longitude = gps.location.lng();
   hdop = gps.hdop.value() ;
   printInt(gps.satellites.value(), gps.satellites.isValid(), 5);
-  Serial.print("numberOfSatellites is: "); Serial.println(numberOfSatellites);
-  Serial.print("hdop is:               "); Serial.println(hdop);
-  Serial.print("latitude is:           "); Serial.println(latitude);
-  Serial.print("longitude is:          "); Serial.println(longitude);
-  
+  Serial.println("");
+  Serial.print("SU | LOO | numberOfSatellites is: "); Serial.println(numberOfSatellites);
+  Serial.print("SU | LOO | hdop is:               "); Serial.println(hdop);
+  Serial.print("SU | LOO | latitude is:           "); Serial.println(latitude);
+  Serial.print("SU | LOO | longitude is:          "); Serial.println(longitude);
+  Serial.println("");
   
   if(!didCentralSendConfirmation){
-    ScanForCentral();
+    if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+      ScanForCentral();
+    }else{
+      sendMyTypeToCentral();
+      delay(75);
+    }
   }else{
     deleteUnactiveCentral();  
   }
@@ -424,5 +423,4 @@ void loop() {
     sendData();
   }
   count++; 
-  delay(1000);
 }
