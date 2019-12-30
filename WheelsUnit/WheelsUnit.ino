@@ -1,4 +1,4 @@
-// NOTE:
+// NOTE: 
 // Send all data after reciving new configuration
 // this call contain some constants you can find those for your specific hardware via WaterTest
 #include <M5Stack.h>
@@ -27,7 +27,7 @@ long startTime = -1; // we give 10 seconds to central to respod, then we will tr
 
 int lastTimeDataRecived = 0;
 
-
+  
 struct SendRecvDataStruct{
 
 };
@@ -42,7 +42,7 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
   return true;
 }
 
-// prints given mac address
+// prints given mac address 
 void printAddress(const uint8_t addr[]){
   for (int i = 0; i < 6; ++i ) {
     Serial.print((uint8_t) addr[i], HEX);
@@ -78,19 +78,19 @@ void storeDataInEEPROM(){
   }
   uint8_t test[6];
   for(int i=1 ; i < 7; i++ ){
-    test[i-1] = EEPROM.read(i);
+    test[i-1] = EEPROM.read(i);  
   }
   if(!checkIfTwoAddressesAreSame(test, central.peer_addr)){
     Serial.println("SU | storeDataInEEPROM | storing new central mac into EEPROM");
     for(int i=1 ; i < 7; i++ ){
-      EEPROM.write(i,central.peer_addr[i-1]);
+      EEPROM.write(i,central.peer_addr[i-1]);  
     }
   }
   // check if data is same
   EEPROM.commit();
 }
 
-//
+// 
 void sendMyTypeToCentral(){
   Serial.print("SU | sendMyTypeToCentral | sending my type to central, its mac is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
   uint8_t data = 101;
@@ -129,20 +129,20 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.print("SU | onDataSent | Last Packet Sent to: "); Serial.println(macStr);
   Serial.print("SU | onDataSent | Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-
+  
 }
 
 void sendData() {
   Serial.println();
   Serial.println("SU | sendData | Sending data");
   SendRecvDataStruct data;
-
+  
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
   Serial.print("SU | sendData | Size of dataToBeSend is: "); Serial.println(sizeof(dataToBeSend));
-
+  
   esp_err_t result = esp_now_send(central.peer_addr, dataToBeSend, sizeof(dataToBeSend));
-
+  
   Serial.print("SU | sendData | Send Status: ");
   if (result == ESP_OK) {
     Serial.println("Success");
@@ -174,19 +174,19 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("SU | onDataRecv | Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("SU | onDataRecv | Last Packet Recv Data: "); Serial.println(*data);
 
-
+  
   if (*data == (uint8_t) 92){
     if(checkIfTwoAddressesAreSame(potencialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potencialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potencialCentral wouldn't be empty
       Serial.println("SU | onDataRecv | Set up central");
       counter=0;
-      memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent,  sa d sa dsa sad
+      memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent,  sa d sa dsa sad 
       didCentralSendConfirmation = true;
       esp_err_t addStatus = esp_now_add_peer(&central);
-      lastTimeDataRecived = millis();
+      lastTimeDataRecived = millis();    
       Serial.print("SU | onDataRecv | Centrals mac address is: "); printAddress(central.peer_addr); Serial.println("");
       storeDataInEEPROM(); // save new central into EEPROM
     }else  {
-      Serial.println("SU | onDataRecv | got 92 from unit I wasn't expecting");
+      Serial.println("SU | onDataRecv | got 92 from unit I wasn't expecting");  
     }
   }
   if(checkIfTwoAddressesAreSame(mac_addr, central.peer_addr)){
@@ -242,7 +242,7 @@ void ScanForCentral() {
 // tryes to pair with potencialCentral
 bool attempToPair() {
   Serial.print("SU | attempToPair | Processing: ");
-
+  
   for (int ii = 0; ii < 6; ++ii ) {
     Serial.print((uint8_t) potencialCentral.peer_addr[ii], HEX);
     if (ii != 5) Serial.print(":");
@@ -265,30 +265,30 @@ bool attempToPair() {
       }
     } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
       Serial.println("Add Peer - Invalid Argument");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
       Serial.println("Peer list full");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      Serial.println("Out of memory"); 
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
       Serial.println("Peer Exists");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     } else {
       Serial.println("Not sure what happened");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
       noOfAttempts++;
     }
     delay(100);
   }
   if(noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
   delay(50);
-
+  
 }
 
 // if central didin't send anything for 30 second we will delete her
@@ -296,10 +296,10 @@ void deleteUnactiveCentral(){
   if(getTimeDiffrence(lastTimeDataRecived) > 30000){
     Serial.println("SU | deleteUnactiveCentral | deleting");
     sendedIMyTypeToCentral = false;
-    didCentralSendConfirmation = false;
+    didCentralSendConfirmation = false;  
     potencialCentral = emptyEspInfo;
     central = emptyEspInfo;
-
+    
     esp_err_t delStatus = esp_now_del_peer(central.peer_addr);
     Serial.print("SU | deleteUnactiveCentral | Slave Delete Status: ");
     if (delStatus == ESP_OK) {
@@ -313,7 +313,7 @@ void deleteUnactiveCentral(){
       Serial.println("Peer not found.");
     } else {
       Serial.println("Not sure what happened");
-    }
+    } 
   }
 }
 
@@ -328,7 +328,7 @@ void setup() {
   initESPNow();
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
-
+  
   potencialCentral = emptyEspInfo;
   delay(500);
   if (!EEPROM.begin(EEPROM_SIZE)){
@@ -346,23 +346,34 @@ void setup() {
       potencialCentral.channel = 1; // pick a channel
       potencialCentral.encrypt = 0;
       Serial.print("SU | SETUP | Central address that i got from EEPROM is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
-      if(attempToPair()){
+      if(attempToPair()){ 
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
       }
   }
 }
-  M5.begin();
+  M5.begin();  
   M5.Lcd.setTextColor(TFT_YELLOW);
-  M5.Lcd.setFreeFont(FSB12);
+  M5.Lcd.setFreeFont(FSB12);   
   ScanForCentral();
 }
 
 int val;
 byte count = 0;
 
-void loop() {
+// This custom version of delay() ensures that the gps object is being "fed".
 
+static void smartDelay(unsigned long ms){
+  unsigned long start = millis();
+  do
+  {
+    while (Serial2.available())
+      gps.encode(Serial2.read());
+  } while (getTimeDiffrence(start) < ms);
+}
+
+void loop() {
+  
   if(!didCentralSendConfirmation){
     if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
       Serial.println("SU | LOOP | Scanning");
@@ -373,13 +384,13 @@ void loop() {
       delay(75);
     }
   }else{
-    deleteUnactiveCentral();
+    deleteUnactiveCentral();  
   }
-
+  
   if(count % 3 == 0 && didCentralSendConfirmation){
     count = 0;
     sendData();
   }
-  count++;
+  count++; 
   delay(1000);
 }
