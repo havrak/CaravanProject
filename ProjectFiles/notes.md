@@ -18,6 +18,8 @@ načtená data z EEPROM -- centrála si načte, pošle jednotce 88, ta si mac po
 načte mastera do potentialMaster z EEPROM -- bude čekat na číslo 88, dáme větší čas na čekání - 30 sekund, než bude skenovat dál
 kontrolovat čas přechodu v loop
 
+vyhřívání -- pokud vyhodí jeden senzor, tak vše vypnout
+
 + tlačítko
 	+ po stisknutí se odhalí SSID
 	+ po dalším stisknutí ho zase schová

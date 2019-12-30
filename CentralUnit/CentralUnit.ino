@@ -1,6 +1,3 @@
-/*
-    Code for central unit, runs on OLIMEX Gateway
-*/
 #include <esp_now.h>        // for enabling ESP NOW wich is used to communicate with units
 #include <WiFi.h>           // for ESP NOW
 #include <SPI.h>            // for ethernet
@@ -17,8 +14,7 @@
 
 #include "Free_Fonts.h"
 #include "Water.h"
-#include "Heating.h"
-#include "Power.h"
+#include "PowerAndHeating.h"
 #include "Wheels.h"
 #include "Security.h"
 #include "Water.h"
@@ -32,17 +28,6 @@
 #define MOSI 23
 #define CS 26
 #define CHANNEL 1
-
-//01 05 00 01 02 00 9d 6a
-//char uart_buffer[8] = {0x01, 0x05, 0x00, 0x01, 0x02, 0x00, 0x9d, 0x6a};
-//char uart_rx_buffer[8] = {0};
- 
-//char Num = 0;
-//char stringnum = 0;
-//unsigned long W5500DataNum = 0;
-//unsigned long Send_Num_Ok = 0;
-//unsigned long Rec_num = 0;
-//unsigned long Rec_Num_Ok = 0;
 
 WebServer server(80); 
 
@@ -58,7 +43,7 @@ Timezone CE(CEST, CET);
 String formattedTime;
 String dayStamp;
 String timeStamp;
-const int slaveTypesNumber = 5;
+const int slaveTypesNumber = 4;
 
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 IPAddress nm(255, 255, 255, 0); 
@@ -68,14 +53,20 @@ IPAddress ip(10, 18, 11, 197);
 
 // need last one whole array will be inicialized with emtpy sicne you cant go back to default value of enum
 enum SlaveTypes{
-  SECURITY,WATER,WHEELS,HEATING,POWER,EMPTY
+  SECURITY,WATER,WHEELS,HEATINGANDPOWER,EMPTY
 };
 
 //Nextion on screen interactive items
-//NexButton b1 = NexButton(0, 9, "b1");  // Button added
-//NexTouch *nex_listen_list[] = {
-//  &b1,  // Button added
-//};
+NexButton b1 = NexButton(0, 9, "b1");  // Button added
+NexText nextionTextWater = NexText(0, 19, "t16");
+NexText nextionTextPower = NexText(0, 23, "t24");
+NexText nextionTextHeating = NexText(0, 22, "t23");
+NexText nextionTextConnection = NexText(0, 21, "t22");
+NexText nextionTextSecurity = NexText(0, 20, "t21");
+
+NexTouch *nex_listen_list[] = {
+  &b1,  // Button added
+};
 
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
 
@@ -92,11 +83,10 @@ unsigned long registryTime[slaveTypesNumber];
 
 esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my comfort, of course memcpy with 0 would work to
 
-Power power;
+PowerAndHeating powerAndHeating;
 Security security;
 Water water;
 Wheels wheels;
-Heating heating;
 Connection connection;     // unsafe, crashes whole unit
 Temperatures temperatures;
 Weather weather(49.233056,17.666944);
@@ -198,6 +188,7 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
           Serial.print(", MAC address of security is "); printAddress(espInfo[i].peer_addr); Serial.println("");
           storeUnitInEEPROM(espInfo[i], 1); sendConformationToUnit(i);
+          nextionTextSecurity.Set_font_color_pco(2016);
           i = slaveTypesNumber;
           break;
         case 2:
@@ -209,6 +200,7 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); 
           Serial.print(", MAC address of water is "); printAddress(espInfo[i].peer_addr); Serial.println("");
           storeUnitInEEPROM(espInfo[i], 2); sendConformationToUnit(i);
+          nextionTextWater.Set_font_color_pco(2016);
           i = slaveTypesNumber;
           break;
         case 3:
@@ -223,25 +215,16 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           i = slaveTypesNumber;
           break;
         case 4:
-          if(doesArrayAlreadyContainsType(HEATING)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
-          slaveTypes[i] = HEATING;
+          if(doesArrayAlreadyContainsType(HEATINGANDPOWER)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
+          slaveTypes[i] = HEATINGANDPOWER;
           memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
-          Serial.println("CU | addNewSlaveToArray | Added HEATING");
-          heating.setEstablishedConnection(true); heating.updateLastTimeRecived();   
+          Serial.println("CU | addNewSlaveToArray | Added HEATINGANDPOWER");
+          powerAndHeating.setEstablishedConnection(true); powerAndHeating.updateLastTimeRecived();   
           Serial.print(", index is: "); Serial.print(i); 
-          Serial.print(", MAC address of heating is "); printAddress(espInfo[i].peer_addr); Serial.println("");
+          Serial.print(", MAC address of powerAndHeating is "); printAddress(espInfo[i].peer_addr); Serial.println("");
           storeUnitInEEPROM(espInfo[i], 4); sendConformationToUnit(i);
-          i = slaveTypesNumber;
-          break;
-        case 5:
-          if(doesArrayAlreadyContainsType(POWER)){ Serial.println("CU | addNewUnitToArray | You are trying to add type that is already stored"); break;}
-          slaveTypes[i] = POWER;
-          memcpy (&espInfo[i], &newUnitInfo, sizeof(newUnitInfo));
-          Serial.println("CU | addNewSlaveToArray | Added POWER");
-          power.setEstablishedConnection(true); power.updateLastTimeRecived();
-          Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); 
-          Serial.print(", MAC address of power is "); printAddress(espInfo[i].peer_addr); Serial.println("");
-          storeUnitInEEPROM(espInfo[i], 5); sendConformationToUnit(i);
+          nextionTextPower.Set_font_color_pco(2016);
+          nextionTextHeating.Set_font_color_pco(2016);
           i = slaveTypesNumber;
           break;
       }
@@ -347,12 +330,8 @@ void sendData(SlaveTypes type) {
       dataToBeSent = wheels.getDataToBeSend();
       break;
     }
-    case HEATING:{
-      dataToBeSent = heating.getDataToBeSend();
-      break;
-    }
-    case POWER:{
-      dataToBeSent = power.getDataToBeSend();
+    case HEATINGANDPOWER:{
+      dataToBeSent = powerAndHeating.getDataToBeSend();
       break;
     }
     default:{
@@ -468,7 +447,6 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("CU | onDataRecv  | Last Packet Recv from:   "); Serial.println(macStr);
   Serial.print("CU | onDataRecv  | Last Packet Recv lenght: "); Serial.println(data_len);
   
-    //printAddress(untypedPeers[i].peer_addr); Serial.print(" and "); Serial.println(macStr)
   byte temp = (*data-100);
   if( temp > 0 && temp <= slaveTypesNumber){
     if(getSlaveTypeForMAC(mac_addr) == EMPTY){
@@ -505,14 +483,9 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
         if(wheels.updateYourData(data)) wheels.updateLastTimeRecived();
         else validMessage = false;
         break;
-      case HEATING:
-        Serial.println("CU | onDataRecv | got new data for heating");
-        if(heating.updateYourData(data)) heating.updateLastTimeRecived();
-        else validMessage = false;
-        break;
-      case POWER:
-        Serial.println("CU | onDataRecv | got new data for power");
-        if(power.updateYourData(data)) power.updateLastTimeRecived();
+      case HEATINGANDPOWER:
+        Serial.println("CU | onDataRecv | got new data for powerAndHeating");
+        if(powerAndHeating.updateYourData(data)) powerAndHeating.updateLastTimeRecived();
         else validMessage = false;
         break;
       default:
@@ -541,9 +514,6 @@ void removeUnit(SlaveTypes type){
 
 // removes unactive units that didnt send any data (right data) in last 4 minutes
 void removeUnactiveUnits(){
-  // checks if millis was reseted
-  // if thats case all lastTimeRecived will be set to new value
-  // delets only if connectionWasEstablished (since lastTimeRecived can be set, thanks to if statem just above, without recivining any data)
   if(getTimeDiffrence(security.getLastTimeRecived()) > 240000 && security.getEstablishedConnection()){
     removeUnit(SECURITY);
     security.setEstablishedConnection(false);
@@ -556,13 +526,9 @@ void removeUnactiveUnits(){
     removeUnit(WHEELS);
     wheels.setEstablishedConnection(false);
   }
-  if(getTimeDiffrence(heating.getLastTimeRecived()) > 240000 && heating.getEstablishedConnection()){
-    removeUnit(HEATING);
-    heating.setEstablishedConnection(false);
-  }
-  if(getTimeDiffrence(power.getLastTimeRecived()) > 240000 && power.getEstablishedConnection()){
-    removeUnit(POWER);
-    power.setEstablishedConnection(false);
+  if(getTimeDiffrence(powerAndHeating.getLastTimeRecived()) > 240000 && powerAndHeating.getEstablishedConnection()){
+    removeUnit(HEATINGANDPOWER);
+    powerAndHeating.setEstablishedConnection(false);
   }
 }
 
@@ -580,16 +546,15 @@ void pingEachSesnorUnit(){
 void updateTime(){
   byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
   int   triesTime = millis();
-  Serial.println("CU | updateTime | UPDATING");
   //timeClient.setTimeOffset(setOffSetForSummerTime());
   while(!timeClient.update() && tries < 5 && getTimeDiffrence(triesTime) < 5000) {
     timeClient.forceUpdate();
-    Serial.println("CU | updateTime | UPDATED");
+    Serial.println("CU | updateTime | updated");
     tries++;
   } 
   // get unix time and sets it into Time.h for timekeeping
   setTime(timeClient.getEpochTime());
-  //formattedTime = timeClient.getFormattedTime();
+  Serial.print("CU | updateTime | time is: ");
   Serial.print(hour());
   Serial.print(":");
   Serial.print(minute());
@@ -599,16 +564,14 @@ void updateTime(){
 
 // displys time on nextion
 void displayTime(){
-  Serial.println("CU |displayTime | Dispaling time");
   String command;
-  // in / is mode with zeroes
   startEndNextionCommand();
   //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
   command = "textHours.txt=\""+String(hour())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
-  //command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
-  command = "textMinutes.txt=\""+String(minute())+"\"";
+  command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
+  //command = "textMinutes.txt=\""+String(minute())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
   //command = day() < 10 ? "textAccuracy.txt=\"0"+String(day())+"\"" : "textAccuracy.txt=\""+String(day())+"\"";
@@ -626,10 +589,6 @@ void setup(){
   M5.begin(true, false, true);
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
-  /* Serial2.print("baud=115200");
-   * startEndNextionCommand();
-   * Serial2.end();  // End the serial comunication of baud=9600
-   * Serial2.begin(115200, SERIAL_8N1,16,17);  // Start serial comunication at baud=115200 */
   while (!Serial);
   
   WiFi.mode(WIFI_AP_STA);
@@ -637,13 +596,6 @@ void setup(){
   configDeviceAP();
   Serial.print("CU | SETUP | AP MAC: "); Serial.println(WiFi.softAPmacAddress());
 
-  // Init ESPNow with a fallback logic
-  //initESPNow();
-  // Once ESPNow is successfully Init, we will register for Send CB to
-  // get the status of Trasnmitted packet
-  //esp_now_register_send_cb(onDataSent);
-  //esp_now_register_recv_cb(onDataRecv);
-  
   SPI.begin(SCK, MISO, MOSI, -1);
   delay(1000);
   Ethernet.init(CS);
@@ -705,9 +657,9 @@ void loop(){
   
   if(interationCounter == 0){
     updateTime();
-    //if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
-    //weather.update();
-    ///weather.updateDataOnNextion(hour());
+    if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
+    weather.update();
+    weather.updateDataOnNextion(hour());
     interationCounter = 10;    
     pingEachSesnorUnit();
   }

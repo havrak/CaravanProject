@@ -2,14 +2,14 @@
 // User most likely wont be able to change anything so communication with chip will be one way.
 
 
-#ifndef POWER_H
-#define POWER_H
+#ifndef POWERANDHEATING_H
+#define POWERANDHEATING_H
 #include "UnitAbstract.h"
 
-class Power : public UnitAbstract{
+class PowerAndHeating : public UnitAbstract{
   public:
 
-    Power(){
+    PowerAndHeating(){
       
     }
     void updateDataOnNextion(){
@@ -38,6 +38,29 @@ class Power : public UnitAbstract{
         Serial2.print(command);
         startEndNextionCommand();
       }
+      if(data.isHeatingOn){
+        startEndNextionCommand(); 
+        command= "textHeating.txt=\"ON\"";
+        Serial2.print(command);
+        startEndNextionCommand(); 
+        command= "imgHeating.pic=4";
+        Serial2.print(command);
+        startEndNextionCommand();
+        command= "textAmperes.txt=\""+String(data.amperesMax)+"A\"";
+        Serial2.print(command);
+        startEndNextionCommand();
+      }else{
+        startEndNextionCommand(); 
+        command= "textHeating.txt=\"OFF\"";
+        Serial2.print(command);
+        startEndNextionCommand(); 
+        command= "imgHeating.pic=10";
+        Serial2.print(command);
+        startEndNextionCommand();
+        command= "textAmperes.txt=\"0A\"";
+        Serial2.print(command);
+        startEndNextionCommand(); 
+      };
       command= "textBattery.txt=\""+String(data.batteryState)+"%\"";
       Serial2.print(command);
       startEndNextionCommand();
@@ -79,7 +102,9 @@ class Power : public UnitAbstract{
       double batteryState;
       double currentDrawn;
       bool charging;
-     
+      float temperaturesFloor[6];
+      bool isHeatingOn;
+      float amperesMax;
     };
     Data data;
 };

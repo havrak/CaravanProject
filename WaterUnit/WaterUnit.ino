@@ -189,7 +189,7 @@ void loadDataFromEEPROM(){
 
 void sendMyTypeToCentral(){
   Serial.print("SU | sendMyTypeToCentral | sending my type to central, its mac is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
-  uint8_t data = 101;
+  uint8_t data = 102;
   esp_err_t result = esp_now_send(potencialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
   Serial.print("SU | sendMyTypeToCentral | Send Status: ");
   if (result == ESP_OK) {
@@ -457,15 +457,16 @@ void setup() {
   //pinMode(13, INPUT);                     // sensor of lower water level, HIGH on
   //pinMode(5, INPUT);                      // flowmeter sends impule 
   //pinMode(14, INPUT);
-  pinMode(RELEVALV, OUTPUT);                     // relay (LOW on, HIGH off) - when on water can start flowing to water tank
-  pinMode(LEVELTOP, INPUT);                     // sensor of upper water level, HIGH on - sensor sends one if top sensor was hitted
-  pinMode(LEVELBOT, INPUT);                     // sensor of lower water level, HIGH on
-  pinMode(IMPULSEM, INPUT);                      // flowmeter sends impule 
-  pinMode(RELEHEAT, OUTPUT);
-
+  pinMode(RELEVALV, OUTPUT);                // relay (LOW on, HIGH off) - when on water can start flowing to water tank
+  pinMode(LEVELTOP, INPUT);                 // sensor of upper water level, HIGH on - sensor sends one if top sensor was hitted
+  pinMode(LEVELBOT, INPUT);                 // sensor of lower water level, HIGH on
+  pinMode(IMPULSEM, INPUT);                 // flowmeter sends impule 
+  pinMode(RELEHEAT, OUTPUT);                // rele for heating water
+  pinMode(25, OUTPUT);                      // speaker pin
   
   digitalWrite(RELEVALV, LOW);
   digitalWrite(RELEHEAT, LOW);
+  digitalWrite(25, LOW);
   //  pinMode(12, OUTPUT);             // rele ventil(HIGH vypnuto, LOW zapnuto
 
   //pinMode(15, OUTPUT);             // rele vyhrev(HIGH vypnuto, LOW zapnuto

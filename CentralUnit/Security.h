@@ -51,7 +51,6 @@ class Security : public UnitAbstract{
     // clone whole structure, must ensure that new config is sent to sensor before it sends its data to prevent missmatch across what is shown at nextion and what has sensor unit
     // check how flow works
     bool updateYourData(const uint8_t *newData){
-      Serial.print("SECURITY | updateYourData | size is: "); Serial.print(sizeof(newData)); Serial.print(" and "); Serial.println(sizeof(data));
       if(sizeof(newData) != sizeof(data)){
         memcpy(&data, newData, sizeof(data));
         Serial.print("SECURITY | updateYourData | isPositionKnown:          "); Serial.println(isPositionKnown);
