@@ -57,7 +57,8 @@ enum SlaveTypes{
 };
 
 //Nextion on screen interactive items
-NexButton b1 = NexButton(0, 9, "b1");  // Button added
+NexButton changeConBtn = NexButton(0, 57, "changeConBtn");  // Button added
+
 NexText nextionTextWater = NexText(0, 19, "t16");
 NexText nextionTextPower = NexText(0, 23, "t24");
 NexText nextionTextHeating = NexText(0, 22, "t23");
@@ -65,7 +66,8 @@ NexText nextionTextConnection = NexText(0, 21, "t22");
 NexText nextionTextSecurity = NexText(0, 20, "t21");
 
 NexTouch *nex_listen_list[] = {
-  &b1,  // Button added
+  &changeConBtn,  // Button added
+  NULL
 };
 
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
@@ -91,12 +93,9 @@ Connection connection;     // unsafe, crashes whole unit
 Temperatures temperatures;
 Weather weather(49.233056,17.666944);
 
-void b1PushCallback(void *ptr){
-  digitalWrite(13, HIGH);  // Turn ON internal LED
-}  // End of press event
-
-void b1PopCallback(void *ptr){
-  digitalWrite(13, LOW);  // Turn OFF internal LED
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
 }
 
 // end nextion command, also starts in case something was in serial line
@@ -590,7 +589,6 @@ void setup(){
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
   while (!Serial);
-  
   WiFi.mode(WIFI_AP_STA);
   // This is the mac address of the Master in Station Mode
   configDeviceAP();
@@ -633,7 +631,10 @@ void setup(){
   }else{
     //loadDataFromEEPROM();
   }
-  
+  nexInit();
+  changeConBtn.attachPop(changeConBtnPopCallback, &changeConBtn);
+  connection.displayUnknownState();
+
   
   //timeClient.begin();
   //updateTime();
@@ -645,6 +646,8 @@ void setup(){
 int interationCounter = 0;
 void loop(){
   M5.update();
+  
+  nexLoop(nex_listen_list);
   
   if (M5.BtnA.wasReleased()) {
     pairingMode = !pairingMode;
@@ -664,12 +667,15 @@ void loop(){
     pingEachSesnorUnit();
   }
 
+  String command;
+  startEndNextionCommand();
+  //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
+  command = "changeConBtn.txt=\"sadasdasdsad\"";
+  Serial2.print(command);
+  startEndNextionCommand();
+  
   displayTime();
 
-  
-  security.updateDataOnNextion();
-  water.updateDataOnNextion();
-  
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

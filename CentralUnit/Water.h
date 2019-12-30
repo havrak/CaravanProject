@@ -65,6 +65,7 @@ class Water : public UnitAbstract{
           Serial.print("WATER | updateYourData | temperature:              "); Serial.println(data.temperature); 
           Serial.print("WATER | updateYourData | validityOfData:           "); Serial.println(data.validityOfData);
           Serial.print("WATER | updateYourData | heating;                  "); Serial.println(data.heating);
+        updateDataOnNextion();
         return true;
       }
       return false;

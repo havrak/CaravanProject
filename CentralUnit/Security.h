@@ -59,7 +59,7 @@ class Security : public UnitAbstract{
         Serial.print("SECURITY | updateYourData | longitude:                "); Serial.println(data.longitude);
         Serial.print("SECURITY | updateYourData | hdop:                     "); Serial.println(data.hdop);
         if(data.numberOfSatellites >=3) isPositionKnown = true;
-        
+        updateDataOnNextion();
         return true;
       }
       return false;

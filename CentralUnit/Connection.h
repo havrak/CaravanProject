@@ -12,8 +12,8 @@ class Connection{
     IPAddress mikrotikIP;
     EthernetClient client; // possible this causes the crash
     IPAddress server;
-      
     
+    String password = "heslo";
     String commands;
     String prompt;
     String sbuffer;
@@ -95,7 +95,7 @@ class Connection{
       if (prompt == "Password:"){
         Serial.println();
         Serial.println("CO | authorize | Password!!!");
-        client.println("heslo");
+        client.println(password);
         loggedIn = true;
         commands = "";
         prompt = "";  
@@ -125,6 +125,7 @@ class Connection{
     
   public:
     bool isConnectionLTE;
+    bool inConnectionKnown = false;
     double Uplink;
     // diffrent evaluation based on source AP, LTE
     double SignalStrenght;
@@ -132,23 +133,43 @@ class Connection{
     Connection(){
       mikrotikIP = IPAddress(10, 18, 11, 240);
     }
+
+    // sets color of "Pripojeni" to yellow
+    void displayUnknownState(){
+      if(!inConnectionKnown){  
+        startEndNextionCommand(); 
+        String command= "t22.pco=65504";
+        Serial2.print(command);
+        startEndNextionCommand(); 
+      }
+    }
+    
     // presses button -> callbacks calls this function -> if it is successfull changes icon on nextion
-    bool changeConnection(bool LTE){
+    bool changeConnection(){
       if(authorize()){
         setUpVariables();
         if (MikroTikPrompt.substring(0,prompt.length()) == prompt) {
           if ( MikroTikPrompt == prompt ) {
-            //Serial.println(commands);
-            if (LTE){ 
-              isConnectionLTE = true;
+            String command;
+            if (isConnectionLTE = !isConnectionLTE){ 
+              Serial.println("CO | changeConnection | Connection is LTE");
               //client.println("/interface ethernet poe set ether2 poe-out=force");
               client.println("/interface ethernet poe monitor ether4 once");
+              command="textConnection.txt=\"LTE\"";
             }
             else{ 
-              isConnectionLTE = false;
+              Serial.println("CO | changeConnection | Connection is AP");
+              command="textConnection.txt=\"AP\"";
               //client.println("/interface ethernet poe set ether3 poe-out=force");
               client.println("/interface ethernet poe set ether4 poe-out=force");
             }
+            inConnectionKnown = true;
+            startEndNextionCommand();
+            Serial2.print(command);
+            startEndNextionCommand();
+            command= "t22.pco=65535";
+            Serial2.print(command);
+            startEndNextionCommand(); 
           }
         }
         disconnect();
