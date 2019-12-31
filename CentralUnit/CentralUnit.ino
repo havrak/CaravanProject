@@ -58,15 +58,25 @@ enum SlaveTypes{
 
 //Nextion on screen interactive items
 NexButton changeConBtn = NexButton(0, 57, "changeConBtn");  // Button added
+NexButton airTempPBtn = NexButton(1, 51, "airTempPBtn");
+NexButton airTempMBtn = NexButton(1, 52, "airTempMBtn");
+NexButton floorTempPBtn = NexButton(1, 49, "floorTempPBtn");
+NexButton floorTemPMBtn = NexButton(1, 50, "floorTemPMBtn");
+NexButton switchTHS = NexButton(0, 58, "switchToHeatingScreen");
+NexButton switchFHS = NexButton(1, 38, "switchToHeatingScreen");
 
-NexText nextionTextWater = NexText(0, 19, "t16");
-NexText nextionTextPower = NexText(0, 23, "t24");
-NexText nextionTextHeating = NexText(0, 22, "t23");
-NexText nextionTextConnection = NexText(0, 21, "t22");
-NexText nextionTextSecurity = NexText(0, 20, "t21");
+NexDSButton cycleOneBtn = NexDSButton(1, 45, "cycleOneBtn");
+NexDSButton cycleTwoBtn = NexDSButton(1, 44, "cycleTwoBtn");
+NexDSButton cycleThreeBtn = NexDSButton(1, 43, "cycleThreeBtn");
+NexDSButton cycleFourBtn = NexDSButton(1, 42, "cycleFourBtn");
+NexDSButton heatingOnOff = NexDSButton(1, 41, "heatingOnOff");
 
 NexTouch *nex_listen_list[] = {
   &changeConBtn,  // Button added
+  &airTempPBtn,
+  &airTempMBtn,
+  &floorTempPBtn,
+  &floorTemPMBtn,
   NULL
 };
 
@@ -187,7 +197,7 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i);
           Serial.print(", MAC address of security is "); printAddress(espInfo[i].peer_addr); Serial.println("");
           storeUnitInEEPROM(espInfo[i], 1); sendConformationToUnit(i);
-          nextionTextSecurity.Set_font_color_pco(2016);
+          startEndNextionCommand(); Serial2.print("t21.pco=2016"); startEndNextionCommand();
           i = slaveTypesNumber;
           break;
         case 2:
@@ -199,7 +209,7 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           Serial.print("CU | addNewSlaveToArray | index is: "); Serial.print(i); 
           Serial.print(", MAC address of water is "); printAddress(espInfo[i].peer_addr); Serial.println("");
           storeUnitInEEPROM(espInfo[i], 2); sendConformationToUnit(i);
-          nextionTextWater.Set_font_color_pco(2016);
+          startEndNextionCommand(); Serial2.print("t16pco=2016"); startEndNextionCommand();
           i = slaveTypesNumber;
           break;
         case 3:
@@ -222,8 +232,8 @@ void addNewUnitToArray(esp_now_peer_info_t newUnitInfo, uint8_t type){
           Serial.print(", index is: "); Serial.print(i); 
           Serial.print(", MAC address of powerAndHeating is "); printAddress(espInfo[i].peer_addr); Serial.println("");
           storeUnitInEEPROM(espInfo[i], 4); sendConformationToUnit(i);
-          nextionTextPower.Set_font_color_pco(2016);
-          nextionTextHeating.Set_font_color_pco(2016);
+          startEndNextionCommand(); Serial2.print("t23.pco=2016"); startEndNextionCommand();
+          startEndNextionCommand(); Serial2.print("t24.pco=2016"); startEndNextionCommand();
           i = slaveTypesNumber;
           break;
       }
@@ -282,7 +292,7 @@ void configDeviceAP() {
   } else {
     Serial.print("CU | configDeviceAP | AP Config Success. Broadcasting with AP: " + String(SSID) + ", pairing Mode is: "); Serial.println(pairingMode);
   }
-  initESPNow(); // is this needed
+  initESPNow();
   esp_now_register_send_cb(onDataSent);
   esp_now_register_recv_cb(onDataRecv);
   for(int i = 0; i < slaveTypesNumber; i++){ // after ESPNow init we need to repair with each unit
@@ -391,6 +401,13 @@ void sendConformationToUnit(byte indexInEspInfo){
   
 }
 
+void pritnEEPROM(){
+  for(int i = 0; i < EEPROM_SIZE; i++){
+    Serial.print((uint8_t) EEPROM.read(i), HEX);
+  }  
+  Serial.println();
+}
+
 // first byte in/off EEPROM, 1 - 6 is masters mac
 void storeUnitInEEPROM(esp_now_peer_info toStore, uint8_t type){ // will be called after new unit was addded
   if(EEPROM.read(0) == 0){ // limited number of writes
@@ -457,7 +474,22 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       Serial.print("CU | onDataRecv | mac of toAdd is: "); printAddress(toAdd.peer_addr); Serial.println("");
       if(!esp_now_is_peer_exist(toAdd.peer_addr)){
         esp_err_t addStatus = esp_now_add_peer(&toAdd);
-        if (addStatus != ESP_OK) Serial.print("CU | onDataRecv | Pairing after reciving data failed, tried to pair with: "); Serial.println(temp);
+        if (addStatus == ESP_OK){
+          Serial.print("CU | onDataRecv | Pairing was cuccesfull, paired with: "); Serial.println(temp);
+        } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+          Serial.println("CU | onDataRecv | Pairing  failed, ESPNOW Not Init");
+          initESPNow();
+        } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
+          Serial.println("CU | onDataRecv | Pairing  failed, Invalid Argument");
+        } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
+          Serial.println("CU | onDataRecv | Pairing  failed, Peer list full");
+        } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
+          Serial.println("CU | onDataRecv | Pairing  failed, Out of memory"); 
+        } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
+          Serial.println("CU | onDataRecv | Pairing  failed, Peer Exists"); 
+        } else {
+          Serial.println("CU | onDataRecv | Pairing  failed, Not sure what happened");
+        }
       }
       if(esp_now_is_peer_exist(toAdd.peer_addr)) addNewUnitToArray(toAdd, temp);   
     }else{
@@ -565,11 +597,12 @@ void updateTime(){
 void displayTime(){
   String command;
   startEndNextionCommand();
-  //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
-  command = "textHours.txt=\""+String(hour())+"\"";
+  command = hour() < 10 ? "textHours.txt=\" "+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
+  //command = "textHours.txt=\""+String(hour())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
-  command = minute() < 10 ? "textAccuracy.txt=\"0"+String(minute())+"\"" : "textAccuracy.txt=\""+String(minute())+"\"";
+  //Serial.println(minute());
+  command = minute() < 10 ? "textMinutes.txt=\" "+String(minute())+"\"" : "textMinutes.txt=\""+String(minute())+"\"";
   //command = "textMinutes.txt=\""+String(minute())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
@@ -591,6 +624,11 @@ void setup(){
   while (!Serial);
   WiFi.mode(WIFI_AP_STA);
   // This is the mac address of the Master in Station Mode
+  
+  for(int i = 0; i < slaveTypesNumber; i++){
+    slaveTypes[i] = EMPTY;
+  }
+  
   configDeviceAP();
   Serial.print("CU | SETUP | AP MAC: "); Serial.println(WiFi.softAPmacAddress());
 
@@ -601,9 +639,6 @@ void setup(){
   Ethernet.begin(mac, ip, dnsss, gw , nm);
   Udp.begin(8888);
 
-  for(int i = 0; i < slaveTypesNumber; i++){
-    slaveTypes[i] = EMPTY;
-  }
   /*
   server.on("/", handleRoot);
   server.on("/inline", []() {
@@ -629,7 +664,7 @@ void setup(){
     Serial.println("CU | SETUP | failed to initialize EEPROM");
      M5.Lcd.println("EEPROM is down");
   }else{
-    //loadDataFromEEPROM();
+    loadDataFromEEPROM();
   }
   nexInit();
   changeConBtn.attachPop(changeConBtnPopCallback, &changeConBtn);
@@ -676,6 +711,7 @@ void loop(){
   
   displayTime();
 
+  connection.getStateOfConnection();
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

@@ -7,18 +7,17 @@
 #include <EEPROM.h>
 #include <Ethernet2.h>
 
+
 class Connection{
   private: 
     IPAddress mikrotikIP;
-    EthernetClient client; // possible this causes the crash
-    IPAddress server;
+    EthernetClient client;
     
-    String password = "heslo";
     String commands;
     String prompt;
     String sbuffer;
     String MikroTikPrompt = "[admin@MikroTik] > ";
-    bool loggedIn = false;
+    int  loggedIn = 0;
       
     bool isTelnetConnectionRunning = false;
     bool didIAuthorized = false;
@@ -28,79 +27,102 @@ class Connection{
       Serial2.write(0xff);
       Serial2.write(0xff);
     }  
-  
-  
+
+    // millis() counter resets every 50 days, gives time diffrence between millis() and sTime in argument
+    unsigned long getTimeDiffrence(unsigned long sTime){
+      if(millis() < sTime){
+        return (ULONG_MAX - sTime) + millis();
+      }
+      return millis() - sTime;
+    }
+    
     
     void setUpVariables(){
       if (client.available() > 0) {
         char c = client.read();
-        client.read();
         if (c < 32 || c > 128 ) {
           prompt = "";
-          if (c==13 && loggedIn){
+          if (c==13 && loggedIn==1){
             sbuffer.replace("[9999B", "");
             Serial.println(sbuffer);
             sbuffer = "";
           }
-        } else{    
+          } else
+          {    
           prompt+=c;
-          if (loggedIn) sbuffer+=c;
+          if (loggedIn == 1) sbuffer+=c;
           //Serial.print(prompt);
         }
         commands+="0x" + String(c,HEX)+" ";
-        //Serial.println(commands);
-        //Serial.println(prompt);
-        //Serial.println(loggedIn);
+    //Serial.println(commands);
+    //Serial.println(prompt);
+    //Serial.println(loggedIn);
       }
     }
+
+    unsigned long timeout = 0;
     bool authorize(){
-      if (client.connect(server, 23)) { // cant connect here
-        Serial.print("connected");
+      disconnect();
+      Serial.println("CO | authorize");
+      if (client.connect(mikrotikIP, 23)) {
+        Serial.println("CO | authorize | connected");
+      }else{
+        Serial.println("CO | authorize | connection failed");
       }
-      setUpVariables();
-      if (commands == "0xff 0xfd 0x18 0xff 0xfd 0x20 0xff 0xfd 0x23 0xff 0xfd 0x27 ") {
-        Serial.println();
-        Serial.println("CO | authorize | Received Phrase 1");
-        byte buf[] = {255, 251, 24, 255, 251, 31};
-        client.write(buf, sizeof(buf));
-        commands = "";
-      }
-      setUpVariables();
-      if (commands == "0xff 0xfd 0x1f ") {
-        Serial.println();
-        Serial.println("CO | authorize | Received Phrase 2");
-        byte buf[] = {255, 252, 32, 255, 252, 35,255,252,39};
-        client.write(buf, sizeof(buf));
-        commands = "";
-      }
-      setUpVariables();
-      if (commands == "0xff 0xfa 0x18 0x1 0xff 0xf0 ") {
-        Serial.println();
-        Serial.println("CO | authorize | Received Phrase 3");
-        byte buf[] = {255,250,31,0,120,0,30,255,240};
-        client.write(buf, sizeof(buf));
-        byte buf2[] = {255,250,39,0,255,240,255,250,24,0,65,78,83,73,255,240};
-        client.write(buf2, sizeof(buf2));
-        commands = "";
-      } 
-      setUpVariables();
-      if (prompt == "Login: "){
-        Serial.println();
-        Serial.println("CO | authorize | Login!!!");
-        client.println("admin+tc");
-        commands = "";
-        prompt = "";  
-      }
-      setUpVariables();
-      if (prompt == "Password:"){
-        Serial.println();
-        Serial.println("CO | authorize | Password!!!");
-        client.println(password);
-        loggedIn = true;
-        commands = "";
-        prompt = "";  
-        return true;
-      }
+      timeout = millis();
+      while(getTimeDiffrence(timeout) < 5000){
+        
+        setUpVariables();
+        //Serial.println(commands);
+        if (commands == "0xff 0xfd 0x18 0xff 0xfd 0x20 0xff 0xfd 0x23 0xff 0xfd 0x27 ") {
+          Serial.println();
+          Serial.println("CO | authorize | Received Phrase 1");
+          byte buf[] = {255, 251, 24, 255, 251, 31};
+          client.write(buf, sizeof(buf));
+          commands = "";
+        }
+        if (commands == "0xff 0xfd 0x1f ") {
+          Serial.println();
+          Serial.println("CO | authorize | Received Phrase 2");
+          byte buf[] = {255, 252, 32, 255, 252, 35,255,252,39};
+          client.write(buf, sizeof(buf));
+          commands = "";
+        }
+        if (commands == "0xff 0xfa 0x18 0x1 0xff 0xf0 ") {
+          Serial.println();
+          Serial.println("CO | authorize | Received Phrase 3");
+          byte buf[] = {255,250,31,0,120,0,30,255,240};
+          client.write(buf, sizeof(buf));
+          byte buf2[] = {255,250,39,0,255,240,255,250,24,0,65,78,83,73,255,240};
+          client.write(buf2, sizeof(buf2));
+          commands = "";
+        }
+        if (commands == "0xff 0xfb 0x3 0xff 0xfd 0x1 0xff 0xfb 0x5 0xff 0xfd 0x21 ") {
+          Serial.println();
+          Serial.println("CO | authorize | Received Phrase 4");
+          byte buf[] = {255,250};
+          client.write(buf, sizeof(buf));
+          byte buf2[] = {255,252,1,255,254,5,255,252,33};
+          client.write(buf2, sizeof(buf2));
+          commands = "";
+        }
+        if (prompt == "Login: "){
+          Serial.println();
+          Serial.println("CO | authorize | Login!!!");
+          client.println("admin+tc");
+          commands = "";
+          prompt = "";  
+        }
+        if (prompt == "Password:"){
+          Serial.println();
+          Serial.println("CO | authorize | Password!!!");
+          client.println("Sboj3169a");
+          loggedIn = 1;
+          commands = "";
+          prompt = "";  
+          return true;
+        }
+      }     
       return false;
     }
 
@@ -114,7 +136,7 @@ class Connection{
         commands = "";
         prompt = "";
         sbuffer = "";
-        loggedIn = false;  
+        loggedIn = 0;  
       }  
       if (!client.connected()) {
         M5.Lcd.println();
@@ -144,8 +166,50 @@ class Connection{
       }
     }
     
+    // return true if connection is LTE
+    int getStateOfConnection(){
+      commands = "";
+      prompt = "";
+      sbuffer = "";
+      loggedIn = false; 
+      Serial.println("CO | getStateOfConnection");
+      //client.println("/interface ethernet poe monitor ether4 once");
+      if(authorize()){
+        bool sendCommad = false;
+        timeout = millis();
+        Serial.println("CO | getStateOfConnection | authorized");
+        while(getTimeDiffrence(timeout) < 5000){
+          setUpVariables();
+          prompt.replace("[9999B", "");
+          if (MikroTikPrompt.substring(0,prompt.length()) == prompt) {
+            if (MikroTikPrompt == prompt && !sendCommad) {
+              sendCommad = true;
+              Serial.println("Got prompt");
+              client.println("/interface ethernet poe monitor ether4 once");
+            }
+          }
+          sbuffer.trim();
+          if(sbuffer.indexOf("poe-out:forced-on") == 0){
+            Serial.println("Forced On");  
+            return 1;
+          }else if(sbuffer.indexOf("poe-out:forced-off") == 0){
+            return 0;
+          }
+        }
+        disconnect();
+      }
+      client.stop();
+      return -1;
+    }
+
+    
     // presses button -> callbacks calls this function -> if it is successfull changes icon on nextion
     bool changeConnection(){
+      commands = "";
+      prompt = "";
+      sbuffer = "";
+      loggedIn = false;
+      Serial.println("CO | changeConnection");
       if(authorize()){
         setUpVariables();
         if (MikroTikPrompt.substring(0,prompt.length()) == prompt) {
@@ -153,15 +217,15 @@ class Connection{
             String command;
             if (isConnectionLTE = !isConnectionLTE){ 
               Serial.println("CO | changeConnection | Connection is LTE");
-              //client.println("/interface ethernet poe set ether2 poe-out=force");
-              client.println("/interface ethernet poe monitor ether4 once");
+              //client.println("/interface ethernet poe set ether4 poe-out=off");
+              //client.println("/interface ethernet poe monitor ether4 once");
               command="textConnection.txt=\"LTE\"";
             }
             else{ 
               Serial.println("CO | changeConnection | Connection is AP");
               command="textConnection.txt=\"AP\"";
               //client.println("/interface ethernet poe set ether3 poe-out=force");
-              client.println("/interface ethernet poe set ether4 poe-out=force");
+              //client.println("/interface ethernet poe set ether4 poe-out=force");
             }
             inConnectionKnown = true;
             startEndNextionCommand();
@@ -172,6 +236,7 @@ class Connection{
             startEndNextionCommand(); 
           }
         }
+        client.stop();
         disconnect();
       }
     }
