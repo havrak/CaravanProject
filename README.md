@@ -12,5 +12,6 @@ More info will be added, including which components are used.
 + Time (https://github.com/PaulStoffregen/Time)
 + ArduinoJson (https://github.com/bblanchon/ArduinoJson)
 + Timezone (https://github.com/JChristensen/Timezone)
-+ Arduino-Telnet-Client (https://github.com/havrak/Arduino-Telnet-Client)
-+ Arduino (https://github.com/esp8266/Arduino/tree/master/doc)
++ Ethernet2 (zip from: https://github.com/m5stack/M5Stack/tree/master/examples/Modules/W5500)
++ DallasTemperature, M5Stack,OneWire
++ TinyGPS++ (http://arduiniana.org/libraries/tinygpsplus/)

@@ -8,10 +8,10 @@
 
 class PowerAndHeating : public UnitAbstract{
   public:
-
     PowerAndHeating(){
       
     }
+    
     void updateDataOnNextion(){
       String command;
       // green plug, charging battery icon (even when charged)
@@ -106,6 +106,9 @@ class PowerAndHeating : public UnitAbstract{
       bool isHeatingOn;
       float amperesMax;
     };
+    
+    double floorTempAverage = 0;
+    double airTempAverage = 0;
     Data data;
 };
 #endif

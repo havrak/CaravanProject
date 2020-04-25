@@ -214,7 +214,6 @@ class Weather{
       }
           
       //String result = "{\"coord\":{\"lon\":14.4,\"lat\":50.16},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01d\"}],\"base\":\"stations\",\"main\":{\"temp\":295.02,\"pressure\":1023,\"humidity\":35,\"temp_min\":293.71,\"temp_max\":296.48},\"visibility\":10000,\"wind\":{\"speed\":2.6,\"deg\":280},\"clouds\":{\"all\":0},\"dt\":1567523276,\"sys\":{\"type\":1,\"id\":6848,\"message\":0.0082,\"country\":\"CZ\",\"sunrise\":1567484380,\"sunset\":1567532676},\"timezone\":7200,\"id\":3066636,\"name\":\"Roztoky\",\"cod\":200}";
-      Serial.println(result);
       //Serial.println("WEATHER | GOT DATA");
       // remove notation for array
       result.replace('[', ' ');
@@ -381,7 +380,7 @@ class Weather{
         String command = "imgWeather.pic=31";
         Serial2.print(command);
         startEndNextionCommand();
-      }
+      } 
       void drawHeavyRain(){
         startEndNextionCommand();
         String command = "imgWeather.pic=32";

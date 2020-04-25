@@ -32,10 +32,10 @@
 WebServer server(80); 
 
 EthernetUDP Udp;
-NTPClient timeClient(Udp, "europe.pool.ntp.org", 3600); 
+//NTPClient timeClient(Udp, "europe.pool.ntp.org", 7200); 
+NTPClient timeClient(Udp); 
 bool pairingMode = true; // will effectt whether device starts in pairing mode
-
-
+ 
 TimeChangeRule CEST = { "CEST", Last, Sun, Mar, 2, 120 };     //Central European Summer Time
 TimeChangeRule CET = { "CET ", Last, Sun, Oct, 3, 60 };       //Central European Standard Time
 Timezone CE(CEST, CET);
@@ -46,11 +46,18 @@ String timeStamp;
 const int slaveTypesNumber = 4;
 
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
-IPAddress nm(255, 255, 255, 0); 
-IPAddress gw(10, 18, 11, 254);
-IPAddress dnsss( 8, 8, 8, 8); 
-IPAddress ip(10, 18, 11, 197);
 
+// Zlin network
+//IPAddress nm(255, 255, 255, 0); 
+//IPAddress gw(10, 18, 11, 254);
+//IPAddress dnsss( 8, 8, 8, 8); 
+//IPAddress ip(10, 18, 11, 197);
+
+// Home network
+IPAddress nm(255, 255, 255, 0); 
+IPAddress gw(192, 168, 1, 1);
+IPAddress dnsss(8, 8, 8, 8); 
+IPAddress ip(192, 168, 1, 198);
 // need last one whole array will be inicialized with emtpy sicne you cant go back to default value of enum
 enum SlaveTypes{
   SECURITY,WATER,WHEELS,HEATINGANDPOWER,EMPTY
@@ -62,8 +69,8 @@ NexButton airTempPBtn = NexButton(1, 51, "airTempPBtn");
 NexButton airTempMBtn = NexButton(1, 52, "airTempMBtn");
 NexButton floorTempPBtn = NexButton(1, 49, "floorTempPBtn");
 NexButton floorTemPMBtn = NexButton(1, 50, "floorTemPMBtn");
-NexButton switchTHS = NexButton(0, 58, "switchToHeatingScreen");
-NexButton switchFHS = NexButton(1, 38, "switchToHeatingScreen");
+NexButton switchTHS = NexButton(0, 58, "switchTHS");
+NexButton switchFHS = NexButton(1, 38, "switchFHS");
 
 NexDSButton cycleOneBtn = NexDSButton(1, 45, "cycleOneBtn");
 NexDSButton cycleTwoBtn = NexDSButton(1, 44, "cycleTwoBtn");
@@ -77,6 +84,8 @@ NexTouch *nex_listen_list[] = {
   &airTempMBtn,
   &floorTempPBtn,
   &floorTemPMBtn,
+  &switchTHS,
+  &switchFHS,
   NULL
 };
 
@@ -101,12 +110,50 @@ Water water;
 Wheels wheels;
 Connection connection;     // unsafe, crashes whole unit
 Temperatures temperatures;
-Weather weather(49.233056,17.666944);
+Weather weather(49.233056,17.666944); // lat and lon of Zlin
+
+//  &airTempPBtn,
+//  &airTempMBtn,
+//  &floorTempPBtn,
+//  &floorTemPMBtn,
+//  &switchTHS,
+//  &switchFHS,
 
 void changeConBtnPopCallback(void *ptr){
   Serial.println("CU | changeConBtnPopCallback");
   connection.changeConnection();
 }
+/*
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
+}
+
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
+}
+
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
+}
+
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
+}
+
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
+}
+
+void changeConBtnPopCallback(void *ptr){
+  Serial.println("CU | changeConBtnPopCallback");
+  connection.changeConnection();
+}
+*/
 
 // end nextion command, also starts in case something was in serial line
 void startEndNextionCommand(){
@@ -155,6 +202,20 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr){ //// propably does not w
   }
   return EMPTY;
 }
+void switchTHSPopCallback(void *ptr){
+  refreshScreen();
+}
+void switchFHSPopCallback(void *ptr){
+  refreshScreen();
+}
+void refreshScreen(){
+  displayTime();
+  weather.updateDataOnNextion(hour());
+  connection.updateDataOnNextion();
+  water.updateDataOnNextion();
+  security.updateDataOnNextion();
+  powerAndHeating.updateDataOnNextion();
+}
 
 // checks if we had already registred MAC in espInfo
 bool doesntContainMac(uint8_t addr[]){
@@ -168,7 +229,7 @@ bool doesntContainMac(uint8_t addr[]){
 }
 
 // checks if two addresses are same
-boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
+boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2){
   if(sizeof(addr1) != sizeof(addr2)){
     return false;
   }
@@ -415,12 +476,13 @@ void storeUnitInEEPROM(esp_now_peer_info toStore, uint8_t type){ // will be call
   }
   for(int i = 1 ; i < (slaveTypesNumber*7+1); i++){
     if(EEPROM.read(i) == 0){
+      Serial.println("CU | storeUnitInEEPROM | Storing new unit to EEPROM");
       EEPROM.write(i, type);
       for(int j=i+1; j <= i+6; j++ ) EEPROM.write(j,toStore.peer_addr[j-i-1]); // store new data into EEPROM
     }else if(EEPROM.read(i) == type){
       uint8_t test[6];
       bool change = false;
-      for(int j=i+1 ; j <= i+6; j++ ) if(toStore.peer_addr[j-i-1] != (uint8_t) EEPROM.read(j)){ change = true; break;} // check if address stored is different
+      for(int j=i+1 ; j <= i+6; j++ ) if(toStore.peer_addr[j-i-1] != (uint8_t) EEPROM.read(j)){ change = true; Serial.println("CU | storeUnitInEEPROM | rewriting old unit in EEPROM"); break;} // check if address stored is different
       if(change) for(int j=i+1; j <= i+6; j++ ) EEPROM.write(j,toStore.peer_addr[j-i-1]); // store new data into EEPROM
     }
   }
@@ -471,6 +533,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       toAdd.channel = 1;
       toAdd.encrypt = 0;
       memcpy(toAdd.peer_addr, mac_addr, sizeof(toAdd.peer_addr));
+      
       Serial.print("CU | onDataRecv | mac of toAdd is: "); printAddress(toAdd.peer_addr); Serial.println("");
       if(!esp_now_is_peer_exist(toAdd.peer_addr)){
         esp_err_t addStatus = esp_now_add_peer(&toAdd);
@@ -547,7 +610,7 @@ void removeUnit(SlaveTypes type){
 void removeUnactiveUnits(){
   if(getTimeDiffrence(security.getLastTimeRecived()) > 240000 && security.getEstablishedConnection()){
     removeUnit(SECURITY);
-    security.setEstablishedConnection(false);
+    security.setEstablishedConnection(false); // write something on nextion
   }
   if(getTimeDiffrence(water.getLastTimeRecived()) > 240000 && water.getEstablishedConnection()){
     removeUnit(WATER);
@@ -585,6 +648,8 @@ void updateTime(){
   } 
   // get unix time and sets it into Time.h for timekeeping
   setTime(timeClient.getEpochTime());
+  setTime(CE.toLocal(now()));
+  
   Serial.print("CU | updateTime | time is: ");
   Serial.print(hour());
   Serial.print(":");
@@ -595,14 +660,15 @@ void updateTime(){
 
 // displys time on nextion
 void displayTime(){
+
   String command;
   startEndNextionCommand();
-  command = hour() < 10 ? "textHours.txt=\" "+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
+  command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
   //command = "textHours.txt=\""+String(hour())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
   //Serial.println(minute());
-  command = minute() < 10 ? "textMinutes.txt=\" "+String(minute())+"\"" : "textMinutes.txt=\""+String(minute())+"\"";
+  command = minute() < 10 ? "textMinutes.txt=\"0"+String(minute())+"\"" : "textMinutes.txt=\""+String(minute())+"\"";
   //command = "textMinutes.txt=\""+String(minute())+"\"";
   Serial2.print(command);
   startEndNextionCommand();
@@ -668,17 +734,20 @@ void setup(){
   }
   nexInit();
   changeConBtn.attachPop(changeConBtnPopCallback, &changeConBtn);
+  switchFHS.attachPop(switchFHSPopCallback, &switchFHS);
+  switchTHS.attachPop(switchTHSPopCallback, &switchTHS);
   connection.displayUnknownState();
 
   
-  //timeClient.begin();
-  //updateTime();
-  //weather.update();
+  timeClient.begin();
+  updateTime();
+  weather.update();
   
   Serial.println("CU | SETUP | FINISHED");
 }
 
 int interationCounter = 0;
+
 void loop(){
   M5.update();
   
@@ -697,21 +766,15 @@ void loop(){
     updateTime();
     if(security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
     weather.update();
-    weather.updateDataOnNextion(hour());
-    interationCounter = 10;    
+    refreshScreen();
+    //weather.updateDataOnNextion(hour());
+    interationCounter = 10;
     pingEachSesnorUnit();
   }
-
-  String command;
-  startEndNextionCommand();
-  //command = hour() < 10 ? "textHours.txt=\"0"+String(hour())+"\"" : "textHours.txt=\""+String(hour())+"\"";
-  command = "changeConBtn.txt=\"sadasdasdsad\"";
-  Serial2.print(command);
-  startEndNextionCommand();
   
   displayTime();
-
-  connection.getStateOfConnection();
+  
+  //connection.getStateOfConnection();
   //sendData(WATER);
   //removeUnactiveUnits();
   interationCounter--;

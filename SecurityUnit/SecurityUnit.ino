@@ -30,7 +30,7 @@ uint32_t numberOfSatellites;
 double latitude;
 double longitude;
 int32_t  hdop ;
-  
+   
 struct SendRecvDataStruct{
   uint32_t numberOfSatellites;
   double latitude;
@@ -250,6 +250,7 @@ void ScanForCentral() {
       }
     }
   }
+  sendMyTypeToCentral();
   WiFi.scanDelete();
 }
 
@@ -339,12 +340,14 @@ void setup() {
   // This is the mac address of the Slave in AP Mode
   Serial.print("SU | SETUP | STA MAC: "); Serial.println(WiFi.macAddress());
   // Init ESPNow with a fallback logic
+  
   initESPNow();
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
   
   potencialCentral = emptyEspInfo;
   delay(500);
+  
   if (!EEPROM.begin(EEPROM_SIZE)){
     // we can't read from EEPROM
     Serial.println("CU | SETUP | failed to initialize EEPROM");
@@ -355,7 +358,7 @@ void setup() {
     }else{
       Serial.println("CU | SETUP | Loading data from EEPROM");
       for (int i = 0; i < 6; ++i ) {
-        potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
+        //potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
       }
       potencialCentral.channel = 1; // pick a channel
       potencialCentral.encrypt = 0;
@@ -365,7 +368,10 @@ void setup() {
         startTime = millis();
       }
   }
-}
+  }
+  pinMode(25, OUTPUT);                      // speaker pin
+  digitalWrite(25, LOW);
+  
   M5.begin();  
   M5.Lcd.setTextColor(TFT_YELLOW);
   M5.Lcd.setFreeFont(FSB12);   
@@ -387,6 +393,7 @@ static void smartDelay(unsigned long ms){
 }
 
 void loop() {
+  
   numberOfSatellites =  gps.satellites.value();
   latitude = gps.location.lat();
   longitude = gps.location.lng();
@@ -397,10 +404,11 @@ void loop() {
   Serial.print("SU | LOOP | hdop is:               "); Serial.println(hdop);
   Serial.print("SU | LOOP | latitude is:           "); Serial.println(latitude);
   Serial.print("SU | LOOP | longitude is:          "); Serial.println(longitude);
+  Serial.print("SU | LOOP | hour is:               "); Serial.println(gps.time.hour());
   Serial.println("");
   
   if(!didCentralSendConfirmation){
-    if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+    if((startTime == -1 && !checkingAgaintsEEPROMmaster) || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
       Serial.println("SU | LOOP | Scanning");
       ScanForCentral();
     }else{
@@ -417,5 +425,6 @@ void loop() {
     sendData();
   }
   count++; 
-  delay(1000);
+  //delay(1000);
+  smartDelay(1000);
 }

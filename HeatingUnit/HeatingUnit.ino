@@ -2,19 +2,39 @@
 // Send all data after reciving new configuration
 // this call contain some constants you can find those for your specific hardware via WaterTest
 #include <M5Stack.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 #include "Free_Fonts.h"
 #include <esp_now.h>
 #include <WiFi.h>
 #include <EEPROM.h>
-#include <TinyGPS++.h>
-#define EEPROM_SIZE 7
+#include "PCA9554.h"  // Load the PCA9554 Library
+#include "ClosedCube_TCA9548A.h"
+#include "ADS1100.h"
 
+
+
+#define EEPROM_SIZE 7
+#define NUMBEROFHEATINGCYCLES 4
+#define NUMBEROFFLOORTEMP 4
+#define NUMBEROFAIRTEMP 4
 #define CHANNEL 1
 
+#define PaHub_I2C_ADDRESS  0x70
+#define DSPINTEMP 13
+
+OneWire oneWireDS(DSPINTEMP);
+DallasTemperature tempSensor(&oneWireDS);
+
+ClosedCube::Wired::TCA9548A tca9548a;
+PCA9554 ioCon1(0x20);  // Create an object at this address
+ADS1100 ads;
 
 esp_now_peer_info_t central;
 esp_now_peer_info_t potencialCentral;
 esp_now_peer_info_t emptyEspInfo;
+
+const int16_t maxFloorTemperature = 30;
 
 bool sendedIMyTypeToCentral = false;
 bool didCentralSendConfirmation = false;
@@ -24,12 +44,22 @@ int counter = 0;
 byte noOfAttempts = 0;
 long startTime = -1; // we give 10 seconds to central to respod, then we will try diffrent cenral with same name, values wont be so big that we would have to worry about unsigned long max size is bigger
 
-
 int lastTimeDataRecived = 0;
 
-  
-struct SendRecvDataStruct{
+struct recvConfigStruct{
+  int16_t desiredRoomTemperature;
+  int16_t desiredFloorTemperature;
+  bool turnOnHeating;
+  bool cyclesOn[NUMBEROFHEATINGCYCLES]; // which cycles do i want to be on
+};
 
+
+struct SendDataStruct{
+  bool isHeatinOn;
+  bool cyclesOn[NUMBEROFHEATINGCYCLES]; // which cycles are on
+  int16_t maxFloorTemperature;
+  int16_t floorTemperatures[NUMBEROFFLOORTEMP];
+  int16_t airTemperatures[NUMBEROFAIRTEMP];
 };
 
 boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
@@ -135,7 +165,7 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
 void sendData() {
   Serial.println();
   Serial.println("SU | sendData | Sending data");
-  SendRecvDataStruct data;
+  SendDataStruct data;
   
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
@@ -236,6 +266,7 @@ void ScanForCentral() {
       }
     }
   }
+  sendMyTypeToCentral();
   WiFi.scanDelete();
 }
 
@@ -317,7 +348,12 @@ void deleteUnactiveCentral(){
   }
 }
 
+uint8_t res;
+
 void setup() {
+  M5.begin(true, false, true);
+  M5.Power.begin();
+  Wire.begin();
   Serial.begin(115200);
   Serial2.begin(9600, SERIAL_8N1,16,17);
   //Set device in AP mode to begin with
@@ -350,12 +386,33 @@ void setup() {
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
       }
+    }
   }
-}
-  M5.begin();  
-  M5.Lcd.setTextColor(TFT_YELLOW);
-  M5.Lcd.setFreeFont(FSB12);   
-  ScanForCentral();
+  M5.Lcd.clear(BLACK);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.setTextColor(GREEN);
+  M5.Lcd.setCursor(40, 30);
+  M5.Lcd.print("UNIT_IO + ADC EXAMPLE\n");
+  M5.Lcd.setTextColor(YELLOW,BLACK);
+  M5.Lcd.setCursor(40, 70);
+  M5.Lcd.println("PortA Hub Addr: 0x70");
+  M5.Lcd.setCursor(25, 95);
+  M5.Lcd.println("Ext_IO Ch: 0 Addr: 0x20");
+  M5.Lcd.setCursor(25, 115);
+  M5.Lcd.println("ADC1   Ch: 1 Addr: 0x48");
+  M5.Lcd.setCursor(25, 135);
+  M5.Lcd.println("ADC2   Ch: 2 Addr: 0x48");
+  
+  uint8_t returnCode = 0;
+  uint8_t channel = 0;
+  tca9548a.address(PaHub_I2C_ADDRESS); // set up hub address
+  returnCode = tca9548a.selectChannel(channel);
+  if( returnCode == 0 ) {
+    Serial.printf("SDA:%d\r\n", SDA);
+    Serial.printf("SCL:%d\r\n", SCL);   
+    ioCon1.portMode0(ALLOUTPUT); //Set the port as all output 
+  }
+  
 }
 
 int val;
@@ -363,8 +420,10 @@ byte count = 0;
 
 void loop() {
   
+  tempSensor.requestTemperatures();
+  temperature = tempSensor.getTempCByIndex(0);
   if(!didCentralSendConfirmation){
-    if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+    if((startTime == -1&& !checkingAgaintsEEPROMmaster) || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
       Serial.println("SU | LOOP | Scanning");
       ScanForCentral();
     }else{

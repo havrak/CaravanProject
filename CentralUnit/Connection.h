@@ -146,7 +146,7 @@ class Connection{
     }
     
   public:
-    bool isConnectionLTE;
+    bool isConnectionLTE = false;
     bool inConnectionKnown = false;
     double Uplink;
     // diffrent evaluation based on source AP, LTE
@@ -173,27 +173,30 @@ class Connection{
       sbuffer = "";
       loggedIn = false; 
       Serial.println("CO | getStateOfConnection");
-      //client.println("/interface ethernet poe monitor ether4 once");
       if(authorize()){
-        bool sendCommad = false;
+        bool sendCommand = false;
         timeout = millis();
         Serial.println("CO | getStateOfConnection | authorized");
         while(getTimeDiffrence(timeout) < 5000){
           setUpVariables();
           prompt.replace("[9999B", "");
           if (MikroTikPrompt.substring(0,prompt.length()) == prompt) {
-            if (MikroTikPrompt == prompt && !sendCommad) {
-              sendCommad = true;
-              Serial.println("Got prompt");
+            if (MikroTikPrompt == prompt && !sendCommand) {
+              sendCommand = true;
               client.println("/interface ethernet poe monitor ether4 once");
             }
           }
-          sbuffer.trim();
-          if(sbuffer.indexOf("poe-out:forced-on") == 0){
-            Serial.println("Forced On");  
-            return 1;
-          }else if(sbuffer.indexOf("poe-out:forced-off") == 0){
-            return 0;
+          if(sendCommand){
+            sbuffer.trim();
+            if(sbuffer.indexOf("poe-out:forced-on") == 0){
+              bool isConnectionLTE = true;
+              Serial.println("CU | getStateOfConnection | Forced On");  
+              return 1;
+            }else if(sbuffer.indexOf("poe-out:forced-off") == 0){
+              bool isConnectionLTE = true;
+              Serial.println("CU | getStateOfConnection | Forced Off"); 
+              return 0;
+            }
           }
         }
         disconnect();
@@ -224,7 +227,7 @@ class Connection{
             else{ 
               Serial.println("CO | changeConnection | Connection is AP");
               command="textConnection.txt=\"AP\"";
-              //client.println("/interface ethernet poe set ether3 poe-out=force");
+              //client.println("/interface ethernet poe set ether4 poe-out=force");
               //client.println("/interface ethernet poe set ether4 poe-out=force");
             }
             inConnectionKnown = true;

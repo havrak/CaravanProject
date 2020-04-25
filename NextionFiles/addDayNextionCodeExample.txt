@@ -1,0 +1,57 @@
+if(editTime.val==1)
+{
+  if(numMonth.val==1||numMonth.val==3||numMonth.val==5||numMonth.val==7||numMonth.val==8||numMonth.val==10||numMonth.val==12)
+  {
+    if(numDay.val<31)
+    {
+      numDay.val=numDay.val+1
+    }else
+    {
+      numDay.val=1
+    }
+  }
+  if(numMonth.val==4||numMonth.val==6||numMonth.val==9||numMonth.val==11)
+  {
+    if(numDay.val<30)
+    {
+      numDay.val=numDay.val+1
+    }else
+    {
+      numDay.val=1
+    }
+  }
+  if(numMonth.val==2)
+  {
+    temp1.val=numYear.val%4
+    temp2.val=numYear.val%100
+    temp3.val=numYear.val%400
+    if(temp1.val==0&&temp2.val!=0)
+    {
+      if(numDay.val<29)
+      {
+        numDay.val=numDay.val+1
+      }else
+      {
+        numDay.val=1
+      }
+    }else if(temp3.val==0)
+    {
+      if(numDay.val<29)
+      {
+        numDay.val=numDay.val+1
+      }else
+      {
+        numDay.val=1
+      }
+    }else
+    {
+      if(numDay.val<28)
+      {
+        numDay.val=numDay.val+1
+      }else
+      {
+        numDay.val=1
+      }
+    }
+  }
+}

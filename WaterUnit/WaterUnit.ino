@@ -360,6 +360,7 @@ void ScanForCentral() {
       }
     }
   }
+  sendMyTypeToCentral();
   WiFi.scanDelete();
 }
 
@@ -591,7 +592,7 @@ void loop() {
   delay(500);
 
   if(!didCentralSendConfirmation){
-    if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+    if((startTime == -1&& !checkingAgaintsEEPROMmaster) || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
       Serial.println("WU | LOOP | Scanning");
       ScanForCentral();
     }else{
