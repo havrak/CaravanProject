@@ -43,14 +43,22 @@ class UnitAbstract {
       lastTimeRecived = millis();  
     };
   protected:
+    long lastTimeRecived;
+    
     void startEndNextionCommand(){
       Serial2.write(0xff);
       Serial2.write(0xff);
       Serial2.write(0xff);
     }
+    unsigned long getTimeDiffrence(unsigned long sTime){
+      if(millis() < sTime){
+    return (ULONG_MAX - sTime) + millis();
+      }
+      return millis() - sTime;
+    }
+
   private:
     struct Data;
-    long lastTimeRecived;
     bool isEstablishedConnectionToUnit;
 
 };

@@ -88,12 +88,18 @@ class Security : public UnitAbstract{
     bool getIsPositionKnown(){
       return isPositionKnown;  
     }
+    
+    // return time from GPS, is adjusted from lastTimeRecieved
+    time_t getTime(){
+      return data.time+ ((int) getTimeDiffrence(lastTimeRecived)/1000);
+    }
   private:
     struct Data{
       uint32_t numberOfSatellites;
       double latitude;
       double longitude;
       int32_t  hdop;
+      time_t time;
     };
     boolean isPositionKnown = false;
     Data data;
