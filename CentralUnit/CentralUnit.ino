@@ -1,10 +1,10 @@
 #include <esp_now.h>        // for enabling ESP NOW wich is used to communicate with units
 #include <WiFi.h>           // for ESP NOW
 #include <SPI.h>            // for ethernet
-#include <WebServer.h>      // for running webserver on Olimex
+#include <WebServer.h>      // for running webserver on Nextion
 #include <EEPROM.h>         // for writing data into EEPROM (probably wont be used here)
 #include <Time.h>           // for timekeeping
-#include <WiFiUdp.h>        // for WifiUdp - as argument in timeCliet
+//#include <WiFiUdp.h>        // for WifiUdp
 #include <NTPClient.h>      // for syncing time via NTP
 #include <Nextion.h>        // for getting data from nextion display
 #include <Timezone.h>       // for keeping track of timezones and summer time
@@ -19,7 +19,7 @@
 #include "Security.h"
 #include "Water.h"
 #include "Connection.h"
-#include "Temperatures.h"
+//#include "Temperatures.h"
 #include "Weather.h"
 
 #define EEPROM_SIZE 36   // define EEPROM size -- laveTypesNumber * 7 -- 1 for type (1,2,3,4....), 6 for mac, first byte for declering if something is stored
@@ -105,7 +105,6 @@ Security security;
 Water water;
 Wheels wheels;
 Connection connection;     // unsafe, crashes whole unit
-Temperatures temperatures;
 Weather weather(49.233056, 17.666944); // lat and lon of Zlin
 
 //  &airTempPBtn,

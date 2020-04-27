@@ -80,6 +80,11 @@ class Weather {
       startEndNextionCommand();
       // set icon according to weather id provided by openweather
       if (displayPicture) {
+        command = "vidWeather.aph=0"; // make video transparrent
+        Serial2.print(command);
+        startEndNextionCommand();
+        Serial2.print("imgWeather.aph=127");
+        startEndNextionCommand();
         switch (weatherID) {
           // Cloudy or clear sky
           case 800: {
@@ -181,110 +186,26 @@ class Weather {
 
           default: drawUnknownVaules(); break;
         }
-      }else{
-        switch (weatherID) {
-          // Cloudy or clear sky
-          case 800: {
-              if (hours > 4 || hours < 20) {
-                startEndNextionCommand();
-                String command = "imgWeather.pic=42";
-                Serial2.print(command);
-                startEndNextionCommand();
-              } else {
-                startEndNextionCommand();
-                String command = "imgWeather.pic=43";
-                Serial2.print(command);
-                startEndNextionCommand();
-              }
-              break;
-            }
-          case 801: {
-              if (hours > 4 || hours < 20) {
-                startEndNextionCommand();
-                String command = "imgWeather.pic=44";
-                Serial2.print(command);
-                startEndNextionCommand();
-              } else {
-                startEndNextionCommand();
-                String command = "imgWeather.pic=45";
-                Serial2.print(command);
-                startEndNextionCommand();
-              }
-              break;
-            }
-          case 802: drawModrateCloud(); break;
-          case 803: drawModrateCloud(); break;
-          case 804: {
-              startEndNextionCommand();
-              String command = "imgWeather.pic=47";
-              Serial2.print(command);
-              startEndNextionCommand();
-              break;
-            }
-          // Strom
-          case 200: drawStrormWithRain(); break;
-          case 201: drawStrormWithRain(); break;
-          case 202: drawStrormWithRain(); break;
-          case 210: drawStorm(); break;
-          case 211: drawStorm(); break;
-          case 212: drawStorm(); break;
-          case 221: drawStorm(); break;
-          case 230: drawStromWithDrizzle(hours); break;
-          case 231: drawStromWithDrizzle(hours); break;
-          case 232: drawStromWithDrizzle(hours); break;
-
-          // Drizzle
-          case 300: drawDrizzle(hours);  break;
-          case 301: drawDrizzle(hours); break;
-          case 302: drawDrizzle(hours); break;
-          case 310: drawDrizzle(hours);  break;
-          case 311: drawDrizzle(hours); break;
-          case 312: drawHeavyDrizzle(hours);  break;
-          case 313: drawHeavyDrizzle(hours);  break;
-          case 314: drawHeavyDrizzle(hours);  break;
-          case 321: drawHeavyDrizzle(hours);  break;
-
-          // Rain
-          case 500: drawRain();  break;
-          case 501: drawRain();  break;
-          case 502: drawHeavyRain();  break;
-          case 503: drawHeavyRain();  break;
-          case 504: drawHeavyRain();  break;
-          case 511: drawOtherRain();  break;
-          case 520: drawOtherRain();  break;
-          case 521: drawOtherRain();  break;
-          case 522: drawHeavyRain();  break;
-          case 531: drawOtherRain();  break;
-
-          // Snow
-          case 600: drawSnow(hours);  break;
-          case 601: drawSnow(hours);  break;
-          case 602: drawHeavySnow();  break;
-          case 611: drawHeavySnow();  break;
-          case 612: drawHeavySnow();  break;
-          case 613: drawHeavySnow(); break;
-          case 615: drawSnowWithRain();  break;
-          case 616: drawSnowWithRain(); break;
-          case 620: drawHeavySnow();  break;
-          case 621: drawHeavySnow();  break;
-          case 622: drawHeavySnow();  break;
-
-          // Atmosphere
-          case 701: drawLimitedVisibility(hours);  break;
-          case 711: drawLowVisibility();  break;
-          case 721: drawLimitedVisibility(hours);  break;
-          case 731: drawLowVisibility();  break;
-          case 741: drawLimitedVisibility(hours);  break;
-          case 751: drawLowVisibility();  break;
-          case 761: drawLowVisibility();  break;
-          case 762: drawLowVisibility();  break;
-          case 771: drawLimitedVisibility(hours);  break;
-          case 781: drawTornado();  break;
-
-          default: drawUnknownVaules(); break;
-        }
+      } else {
+        command = "imgWeather.aph=0"; // make video transparrent
+        Serial2.print(command);
+        startEndNextionCommand();
+        Serial2.print("vidWeather.aph=127");
+        startEndNextionCommand();
+        if (weatherID >= 500 && weatherID <= 531) vidRain();
+        else if (weatherID >= 300 && weatherID <= 321) vidDrizzle(hours);
+        else if (weatherID >= 200 && weatherID <= 232) vidStorm();
+        else if (weatherID == 615 || weatherID == 616) vidSnowRain();
+        else if ((weatherID >= 602 && weatherID <= 613) || (weatherID >= 620 && weatherID <= 622)) vidSnow();
+        else if (weatherID == 600 || weatherID == 601) vidLightSnow(hours);
+        else if (weatherID == 701 || weatherID == 721 || weatherID == 741) vidBroken(hours);
+        else if (weatherID == 801) vidMostlyClear(hours);
+        else if (weatherID == 800) vidClear(hours);
+        else if (weatherID == 802 || weatherID == 803 || weatherID == 804 || weatherID == 711 || weatherID == 731 || weatherID == 761 || weatherID == 781) vidOvercast();
+        else drawUnknownVaules();
       }
     }
+
 
     bool update() {
 
@@ -419,34 +340,117 @@ class Weather {
       }
     }
 
+    void vidRain() {
+      startEndNextionCommand();
+      Serial2.print("vidWeather.vid=0");
+      startEndNextionCommand();
+    }
+    void vidDrizzle(int hours) {
+      if (hours > 4 || hours < 20) {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=1");
+        startEndNextionCommand();
+      } else {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=2");
+        startEndNextionCommand();
+      }
+    }
+
+    void vidStorm() {
+      startEndNextionCommand();
+      Serial2.print("vidWeather.vid=3");
+      startEndNextionCommand();
+    }
+    void vidSnowRain() {
+      startEndNextionCommand();
+      Serial2.print("vidWeather.vid=4");
+      startEndNextionCommand();
+    }
+
+    void vidSnow() {
+      startEndNextionCommand();
+      Serial2.print("vidWeather.vid=5");
+      startEndNextionCommand();
+    }
+
+    void vidLightSnow(int hours) {
+      if (hours > 4 || hours < 20) {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=7");
+        startEndNextionCommand();
+      } else {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=6");
+        startEndNextionCommand();
+      }
+    }
+
+    void vidBroken(int hours) {
+      if (hours > 4 || hours < 20) {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=8");
+        startEndNextionCommand();
+      } else {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=9");
+        startEndNextionCommand();
+      }
+    }
+
+    void vidClear(int hours) {
+      if (hours > 4 || hours < 20) {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=10");
+        startEndNextionCommand();
+      } else {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=11");
+        startEndNextionCommand();
+      }
+    }
+
+    void vidMostlyClear(int hours) {
+      if (hours > 4 || hours < 20) {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=12");
+        startEndNextionCommand();
+      } else {
+        startEndNextionCommand();
+        Serial2.print("vidWeather.vid=13");
+        startEndNextionCommand();
+      }
+    }
+
+    void vidOvercast() {
+      startEndNextionCommand();
+      Serial2.print("vidWeather.vid=14");
+      startEndNextionCommand();
+    }
+
     void drawModrateCloud() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=46";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=46");
       startEndNextionCommand();
     }
     void drawStrormWithRain() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=23";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=23");
       startEndNextionCommand();
     }
     void drawStorm() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=24";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=24");
       startEndNextionCommand();
     }
     void drawStromWithDrizzle(int hours) {
       if (hours > 4 || hours < 20) {
         startEndNextionCommand();
-        String command = "imgWeather.pic=25";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=25");
         startEndNextionCommand();
       } else {
         startEndNextionCommand();
-        String command = "imgWeather.pic=26";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=26");
         startEndNextionCommand();
       }
     }
@@ -454,13 +458,11 @@ class Weather {
     void drawHeavyDrizzle(int hours) {
       if (hours > 4 || hours < 20) {
         startEndNextionCommand();
-        String command = "imgWeather.pic=25";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=25");
         startEndNextionCommand();
       } else {
         startEndNextionCommand();
-        String command = "imgWeather.pic=26";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=26");
         startEndNextionCommand();
       }
 
@@ -468,92 +470,82 @@ class Weather {
     void drawDrizzle(int hours) {
       if (hours > 4 || hours < 20) {
         startEndNextionCommand();
-        String command = "imgWeather.pic=29";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=29");
         startEndNextionCommand();
       } else {
         startEndNextionCommand();
-        String command = "imgWeather.pic=30";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=30");
         startEndNextionCommand();
       }
     }
     void drawOtherRain() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=33";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=33");
       startEndNextionCommand();
     }
     void drawRain() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=31";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=31");
       startEndNextionCommand();
     }
     void drawHeavyRain() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=32";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=32");
       startEndNextionCommand();
     }
 
     void drawSnow(int hours) {
       if (hours > 4 || hours < 20) {
         startEndNextionCommand();
-        String command = "imgWeather.pic=34";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=34");
         startEndNextionCommand();
       } else {
         startEndNextionCommand();
-        String command = "imgWeather.pic=35";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=35");
         startEndNextionCommand();
       }
     }
 
     void drawHeavySnow() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=36";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=36");
       startEndNextionCommand();
     }
 
     void drawSnowWithRain() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=37";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=37");
       startEndNextionCommand();
     }
     void drawLowVisibility() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=40";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=40");
       startEndNextionCommand();
     }
     void drawLimitedVisibility(int hours) {
       if (hours > 4 || hours < 20) {
         startEndNextionCommand();
-        String command = "imgWeather.pic=38";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=38");
         startEndNextionCommand();
       } else {
         startEndNextionCommand();
-        String command = "imgWeather.pic=39";
-        Serial2.print(command);
+        Serial2.print("imgWeather.pic=39");
         startEndNextionCommand();
       }
     }
     void drawTornado() {
       startEndNextionCommand();
-      String command = "imgWeather.pic=41";
-      Serial2.print(command);
+      Serial2.print("imgWeather.pic=41");
       startEndNextionCommand();
     }
 
     void drawUnknownVaules() {
+      startEndNextionCommand(); // will be called both from video and picture;
+      Serial2.print("vidWeather.aph=0");
       startEndNextionCommand();
-      String command = "imgWeather.pic=48";
-      Serial2.print(command);
+      Serial2.print("imgWeather.aph=127");
+      startEndNextionCommand();
+      Serial2.print("imgWeather.pic=48");
       startEndNextionCommand();
     }
 };
