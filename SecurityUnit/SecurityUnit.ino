@@ -7,6 +7,7 @@
 #include <WiFi.h>
 #include <EEPROM.h>
 #include <TinyGPS++.h>
+#include <Time.h>           // to convert date to UNIX time stamp
 #define EEPROM_SIZE 7
 
 #define CHANNEL 1
@@ -30,12 +31,13 @@ uint32_t numberOfSatellites;
 double latitude;
 double longitude;
 int32_t  hdop ;
-   
+
 struct SendRecvDataStruct{
   uint32_t numberOfSatellites;
   double latitude;
   double longitude;
   int32_t  hdop;
+  time_t time;
 };
 
 boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
@@ -147,6 +149,7 @@ void sendData() {
   data.numberOfSatellites = numberOfSatellites;
   data.latitude = latitude;
   data.longitude = longitude;
+  data.time = now();
   
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
@@ -398,6 +401,7 @@ void loop() {
   latitude = gps.location.lat();
   longitude = gps.location.lng();
   hdop = gps.hdop.value() ;
+  setTime(gps.time.hour(),gps.time.minute(),gps.time.second(),gps.date.day(),gps.date.month(),gps.date.year());
   
   Serial.println("");
   Serial.print("SU | LOOP | numberOfSatellites is: "); Serial.println(numberOfSatellites);
