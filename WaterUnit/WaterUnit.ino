@@ -59,6 +59,7 @@ int indexOfInnerTemp;
 
 int lastTimeDataRecived = 0;
 
+// checks if two addresses are same
 boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2) {
   if (sizeof(addr1) != sizeof(addr2)) {
     Serial.println("diffrent size");
@@ -70,7 +71,7 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2) {
   return true;
 }
 
-// prints given mac address
+// prints given mac address, for debug
 void printAddress(const uint8_t addr[]) {
   for (int i = 0; i < 6; ++i ) {
     Serial.print((uint8_t) addr[i], HEX);
@@ -160,6 +161,7 @@ DeviceAddress tempDeviceAddressA; // type: byte[8]
 DeviceAddress tempDeviceAddressB;
 DeviceAddress tempDeviceAddressC;
 
+// loads date from EEPROM
 void loadDataFromEEPROM() {
   if (EEPROM.read(0) == 0) { // water data
     validityOfData = 2;
@@ -230,6 +232,7 @@ void loadDataFromEEPROM() {
 float tempTemp1;
 float tempTemp2;
 
+// stores addresses of outer and inners sensor in EEPROM
 void storeAddressesInEEPROM(DeviceAddress inner, DeviceAddress outer) {
   EEPROM.write(18, 1);
   for (int i = 19; i < 27; i++) { // address for inner sensor
@@ -266,6 +269,7 @@ void identifyTemperatureSensors() {
   }
 }
 
+// sends type to central
 void sendMyTypeToCentral() {
   Serial.print("SU | sendMyTypeToCentral | sending my type to central, its mac is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
   uint8_t data = 102;
@@ -377,32 +381,6 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   }
 }
 
-//
-void sendConfirmation() {
-  Serial.print("WU | sendMyTypeToCentral | sending my type to central, its mac is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
-  uint8_t data = 101;
-  esp_err_t result = esp_now_send(potencialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
-  Serial.print("WU | sendMyTypeToCentral | Send Status: ");
-  if (result == ESP_OK) {
-    Serial.println("Success");
-  } else if (result == ESP_ERR_ESPNOW_NOT_INIT) {
-    initESPNow();
-    Serial.println("ESPNOW not Init.");
-  } else if (result == ESP_ERR_ESPNOW_ARG) {
-    Serial.println("Invalid Argument");
-  } else if (result == ESP_ERR_ESPNOW_INTERNAL) {
-    Serial.println("Internal Error");
-  } else if (result == ESP_ERR_ESPNOW_NO_MEM) {
-    Serial.println("ESP_ERR_ESPNOW_NO_MEM");
-  } else if (result == ESP_ERR_ESPNOW_NOT_FOUND) {
-    Serial.println("Peer not found.");
-  } else {
-    Serial.println("Not sure what happened");
-  }
-}
-
-
-
 void ScanForCentral() {
   int8_t scanResults = WiFi.scanNetworks();
   Serial.println("");
@@ -497,6 +475,7 @@ bool attempToPair() {
 
 }
 
+// deletes unactive cenral (if no data/ping was recieved for 30 seconds)
 void deleteUnactiveCentral() {
   if (getTimeDiffrence(lastTimeDataRecived) > 30000) {
     Serial.println("WU | deleteUnactiveCentral | deleting");
@@ -638,9 +617,7 @@ void loop() {
     Serial.println("WU | LOOP | turning on heating");
     heatingOn=true;
     digitalWrite(RELEHEAT, HIGH);
-  }
-  
-  if(waterTemperature > 8 && !heatingOn){
+  } else if(waterTemperature > 8 && !heatingOn){
     Serial.println("WU | LOOP | turning off heating");
     heatingOn=false;
     digitalWrite(RELEHEAT, LOW);
@@ -654,7 +631,7 @@ void loop() {
     //digitalWrite(RELEVALV, HIGH);
     relayOpen = true;
     // add value for refilling
-  } else if (relayOpen && topTankSensor) {
+  } else if (topTankSensor) { // relayOpen && 
     // close reffiling of tank
     Serial.println("Refilling finished");
     //digitalWrite(RELEVALV, LOW);

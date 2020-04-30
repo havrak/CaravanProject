@@ -45,6 +45,7 @@ String dayStamp;
 String timeStamp;
 const int slaveTypesNumber = 4;
 
+// mac address of LAN unit
 byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 
 // Zlin network
@@ -64,6 +65,7 @@ enum SlaveTypes {
 };
 
 //Nextion on screen interactive items
+// connection
 NexButton changeConBtn = NexButton(0, 57, "changeConBtn");  // Button added
 
 // time
@@ -71,17 +73,25 @@ NexDSButton btnTimeOffset = NexDSButton(2, 39, "btnTimeOffset");
 NexDSButton btnNTP = NexDSButton(2, 65, "btnNTPTime");
 NexDSButton btnGPS = NexDSButton(2, 64, "btnGPSTime");
 NexNumber numOffset = NexNumber(2, 40, "numOffset");
-
-
-
-NexDSButton cycleOneBtn = NexDSButton(1, 45, "cycleOneBtn");
-NexDSButton cycleTwoBtn = NexDSButton(1, 44, "cycleTwoBtn");
-NexDSButton cycleThreeBtn = NexDSButton(1, 43, "cycleThreeBtn");
-NexDSButton cycleFourBtn = NexDSButton(1, 42, "cycleFourBtn");
-NexDSButton heatingOnOff = NexDSButton(1, 41, "heatingOnOff");
+NexNumber editTime = NexNumber(2, 43, "editTime");
+NexNumber numHour = NexNumber(2, 45, "numHour");
+NexNumber numMin = NexNumber(2, 44, "numMin");
+NexNumber numMonth = NexNumber(2, 47, "numMonth");
+NexNumber numDay = NexNumber(2, 46, "numDay");
+NexNumber numYear = NexNumber(2, 48, "numYear");
+// heating
+NexDSButton cycleOneBtn = NexDSButton(1, 50, "cycle1");
+NexDSButton cycleTwoBtn = NexDSButton(1, 49, "cycle2");
+NexDSButton cycleThreeBtn = NexDSButton(1, 48, "cycle3");
+NexDSButton cycleFourBtn = NexDSButton(1, 47, "cycle4");
+NexDSButton heatingOnOff = NexDSButton(1, 51, "heatingOnOff");
+NexNumber airTemp = NexNumber(2, 42, "airTemp");
+NexNumber floorTemp = NexNumber(2, 41, "floorTemp");
+NexNumber limitFloorTemp = NexNumber(2, 52, "maxTemp");
 
 NexTouch *nex_listen_list[] = {
   &changeConBtn,  // Button added
+  &editTime,
   NULL
 };
 
@@ -97,7 +107,6 @@ SlaveTypes slaveTypes[slaveTypesNumber];
 esp_now_peer_info_t espInfo[slaveTypesNumber];
 unsigned long registryTime[slaveTypesNumber];
 
-
 esp_now_peer_info_t emptyInfo; // empty info, for when program need to fill something with 0, mostly for my comfort, of course memcpy with 0 would work to
 
 PowerAndHeating powerAndHeating;
@@ -107,48 +116,28 @@ Wheels wheels;
 Connection connection;     // unsafe, crashes whole unit
 Weather weather(49.233056, 17.666944); // lat and lon of Zlin
 
-//  &airTempPBtn,
-//  &airTempMBtn,
-//  &floorTempPBtn,
-//  &floorTemPMBtn,
-//  &switchTHS,
-//  &switchFHS,
-
 void changeConBtnPopCallback(void *ptr) {
   Serial.println("CU | changeConBtnPopCallback");
   connection.changeConnection();
 }
-/*
-  void changeConBtnPopCallback(void *ptr){
-  Serial.println("CU | changeConBtnPopCallback");
-  connection.changeConnection();
-  }
 
-  void changeConBtnPopCallback(void *ptr){
-  Serial.println("CU | changeConBtnPopCallback");
-  connection.changeConnection();
+void timeManualCallback(void *ptr) {
+  Serial.println("CU | timeManualCallback");
+  uint32_t stateEditTime;
+  editTime.getValue(&stateEditTime);
+  uint32_t stateNTP;
+  btnNTP.getValue(&stateNTP);
+  uint32_t stateGPS;
+  btnGPS.getValue(&stateGPS);
+  if (!stateEditTime && !stateNTP) { // dispaly time on manual setup, if editing is off
+    uint32_t minN; numMin.getValue(&minN);
+    uint32_t hourN; numHour.getValue(&hourN);
+    uint32_t dayN; numDay.getValue(&dayN);
+    uint32_t monthN; numMonth.getValue(&monthN);
+    uint32_t yearN; numYear.getValue(&yearN);
+    setTime(hourN,minN,0,dayN,monthN,yearN);
   }
-
-  void changeConBtnPopCallback(void *ptr){
-  Serial.println("CU | changeConBtnPopCallback");
-  connection.changeConnection();
-  }
-
-  void changeConBtnPopCallback(void *ptr){
-  Serial.println("CU | changeConBtnPopCallback");
-  connection.changeConnection();
-  }
-
-  void changeConBtnPopCallback(void *ptr){
-  Serial.println("CU | changeConBtnPopCallback");
-  connection.changeConnection();
-  }
-
-  void changeConBtnPopCallback(void *ptr){
-  Serial.println("CU | changeConBtnPopCallback");
-  connection.changeConnection();
-  }
-*/
+}
 
 // end nextion command, also starts in case something was in serial line
 void startEndNextionCommand() {
@@ -197,12 +186,8 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr) { //// propably does not 
   }
   return EMPTY;
 }
-void switchTHSPopCallback(void *ptr) {
-  refreshScreen();
-}
-void switchFHSPopCallback(void *ptr) {
-  refreshScreen();
-}
+
+// calls all updateDataOnNexion function
 void refreshScreen() {
   displayTime();
   weather.updateDataOnNextion(hour());
@@ -223,7 +208,7 @@ bool doesntContainMac(uint8_t addr[]) {
   return true;
 }
 
-// checks if two addresses are same
+// checks if two addresses (arrays) are same
 boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2) {
   if (sizeof(addr1) != sizeof(addr2)) {
     return false;
@@ -234,6 +219,7 @@ boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2) {
   return true;
 }
 
+// checks if given type already has its esp info
 bool doesArrayAlreadyContainsType(SlaveTypes type) {
   for (int i = 0; i < slaveTypesNumber; i++) if (slaveTypes[i] == type) return true;
   return false;
@@ -320,7 +306,7 @@ void printAddress(const uint8_t addr[]) {
 
 // root of server running on M5Stack
 void handleRoot() {
-  server.send(200, "text/plain", "hello from esp32!");
+  server.send(200, "text/plain", "This feature is yet to be implemeted");
 }
 
 // callback for WiFi on handle not found
@@ -351,6 +337,7 @@ void initESPNow() {
   }
 }
 
+// set ups AP and tries to pair with units loaded from EEPROM
 void configDeviceAP() {
   WiFi.softAPdisconnect(1);
   const char *SSID = "CARAVAN_CENTRAL_UNIT";
@@ -367,7 +354,7 @@ void configDeviceAP() {
     if (slaveTypes[i] != EMPTY) {
       esp_err_t addStatus = esp_now_add_peer(&espInfo[i]);
       if (addStatus != ESP_OK) {
-        Serial.print("CU | configDeviceAP | pairing after reciving data failed, tried to pair with: "); Serial.println(int(slaveTypes[i]));
+        Serial.print("CU | configDeviceAP | pairing failed, tried to pair with: "); Serial.println(int(slaveTypes[i]));
       }
     }
   }
@@ -445,6 +432,7 @@ void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
   Serial.print("CU | onDataSent | Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
 }
 
+// sendsConformationTo given unit (given by index in array EspInfo), used after recieving message from it
 void sendConformationToUnit(byte indexInEspInfo) {
   Serial.println("CU | sendConformationToUnit | sending to unit: " + String(indexInEspInfo));
   uint8_t data = 92;
@@ -468,7 +456,7 @@ void sendConformationToUnit(byte indexInEspInfo) {
   }
 
 }
-
+// prints whole EEPROM
 void pritnEEPROM() {
   for (int i = 0; i < EEPROM_SIZE; i++) {
     Serial.print((uint8_t) EEPROM.read(i), HEX);
@@ -477,6 +465,7 @@ void pritnEEPROM() {
 }
 
 // first byte in/off EEPROM, 1 - 6 is masters mac
+// stores unit on first empty space, each unit takes 7 bytes, first byte is used as indicator whether something was written.
 void storeUnitInEEPROM(esp_now_peer_info toStore, uint8_t type) { // will be called after new unit was addded
   if (EEPROM.read(0) == 0) { // limited number of writes
     EEPROM.write(0, 1);
@@ -525,6 +514,7 @@ bool loadDataFromEEPROM() {
   }
 }
 
+esp_now_peer_info_t toAdd;
 // callback for when data is recived from sensor unit
 void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   char macStr[18];
@@ -540,7 +530,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   if ( temp > 0 && temp <= slaveTypesNumber) {
     if (getSlaveTypeForMAC(mac_addr) == EMPTY) {
       Serial.print("CU | onDataRecv | Got new unit ist mac is: "); printAddress(mac_addr); Serial.println("");
-      esp_now_peer_info_t toAdd;
+      
       toAdd.channel = 1;
       toAdd.encrypt = 0;
       memcpy(toAdd.peer_addr, mac_addr, sizeof(toAdd.peer_addr));
@@ -711,6 +701,26 @@ void displayTime() {
   command = "textMonth.txt=\"" + String(month()) + "\"";
   Serial2.print(command);
   startEndNextionCommand();
+  uint32_t stateEditTime;
+  editTime.getValue(&stateEditTime);
+  if (!stateEditTime) { // dispaly time on manual setup, if editing is off
+    String command;
+    command = "numYear.val=" + String(year());
+    Serial2.print(command);
+    startEndNextionCommand();
+    command = "numMin.val=" + String(minute());
+    Serial2.print(command);
+    startEndNextionCommand();
+    command = "numHour.val=" + String(hour());
+    Serial2.print(command);
+    startEndNextionCommand();
+    command = "numDay.val=" + String(day());
+    Serial2.print(command);
+    startEndNextionCommand();
+    command = "numMonth.val=" + String(month());
+    Serial2.print(command);
+    startEndNextionCommand();
+  }
 }
 
 
@@ -765,6 +775,8 @@ void setup() {
   }
   nexInit();
   changeConBtn.attachPop(changeConBtnPopCallback, &changeConBtn);
+  editTime.attachPop(timeManualCallback,&editTime);
+  
   connection.displayUnknownState();
 
 

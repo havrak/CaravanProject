@@ -5,8 +5,6 @@
 #ifndef SECURITY_H
 #define SECURITY_H
 #include "UnitAbstract.h"
-// all calculation of water levels will be done on sensor unit
-// first portion of structure are data from unit, second is configuration (seperated by space)
 class Security : public UnitAbstract{
   public:
     

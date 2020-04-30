@@ -61,6 +61,7 @@ class Connection{
     }
 
     unsigned long timeout = 0;
+    // runs authorization on Nextion, command sequences were recorede by wireshark, since whole telnet implemetation just didn't work
     bool authorize(){
       disconnect();
       Serial.println("CO | authorize");
@@ -207,6 +208,8 @@ class Connection{
 
     
     // presses button -> callbacks calls this function -> if it is successfull changes icon on nextion
+    // changes connection after it authorizes
+    // LTE is on ethernet port 3, AP on 2
     bool changeConnection(){
       commands = "";
       prompt = "";
@@ -220,15 +223,17 @@ class Connection{
             String command;
             if (isConnectionLTE = !isConnectionLTE){ 
               Serial.println("CO | changeConnection | Connection is LTE");
-              //client.println("/interface ethernet poe set ether4 poe-out=off");
-              //client.println("/interface ethernet poe monitor ether4 once");
+              client.println("/interface ethernet poe set ether2 poe-out=off");
+              client.println("/interface ethernet poe set ether3 poe-out=force");
               command="textConnection.txt=\"LTE\"";
             }
             else{ 
               Serial.println("CO | changeConnection | Connection is AP");
               command="textConnection.txt=\"AP\"";
               //client.println("/interface ethernet poe set ether4 poe-out=force");
-              //client.println("/interface ethernet poe set ether4 poe-out=force");
+              
+              client.println("/interface ethernet poe set ether3 poe-out=off");
+              client.println("/interface ethernet poe set ether2 poe-out=force");
             }
             inConnectionKnown = true;
             startEndNextionCommand();

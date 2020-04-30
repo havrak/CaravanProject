@@ -1,18 +1,4 @@
-// Weather class takes care of weather, which is provided by api.openweathermap.org.
-// inspired by http://educ8s.tv/esp32-weather-station/`
-// uses ArduinoJSON v6 (inspiration uses v5)
-// https://arduinojson.org/v6/api/jsondocument/
-// Display on Nextion Location!!!!!
-// to get sample optput enter https://api.openweathermap.org/data/2.5/weather?lat=50.1636703&lon=14.3836175&units=metric&cnt=1&APPID=fabd54dece7005a11d0cd555f2384df9
-// to browser
-
-
-// display
-// 1. temp
-// 2. temp min, max
-// 3. windDirection (windSpeed)
-// 4. clouds (in %)
-// 5. location
+// class which takes care of weather
 #ifndef WEATHER_H
 #define WEATHER_H
 #include <Ethernet2.h>
@@ -57,20 +43,7 @@ class Weather {
       startEndNextionCommand();
       // Add zataženo, oblačno
       // clouds == 0 ??
-      String coverage;
-      if (clouds == 100) {
-        coverage = "overcast";
-      } else if (clouds > 87) {
-        coverage = "broken";
-      } else if (clouds > 62) {
-        coverage = "mostly cloudy";
-      } else if (clouds > 37) {
-        coverage = "partly cloudy";
-      } else if (clouds > 12) {
-        coverage = "mostly sunny";
-      } else {
-        coverage = "sunny";
-      }
+      
       command = "textWCloud.txt=\"" + coverage + "\"";
       Serial2.print(command);
       startEndNextionCommand();
@@ -192,6 +165,8 @@ class Weather {
         startEndNextionCommand();
         Serial2.print("vidWeather.aph=127");
         startEndNextionCommand();
+        
+        Serial.print("WEATHER | dispaly | displayng: "); Serial.println(weatherID);
         if (weatherID >= 500 && weatherID <= 531) vidRain();
         else if (weatherID >= 300 && weatherID <= 321) vidDrizzle(hours);
         else if (weatherID >= 200 && weatherID <= 232) vidStorm();
@@ -206,7 +181,8 @@ class Weather {
       }
     }
 
-
+    // updates weather data from OpenWeather
+    // retirn true if update was succesfull
     bool update() {
 
       EthernetClient client;
@@ -257,10 +233,6 @@ class Weather {
       }
       //Serial.println("WEATHER | update | JSON CREATED");
 
-      // need to use as<String>() syntex otherwise throws error, not sure why
-      // error message:  ambiguous overload for 'operator=' (operand types are 'String' and 'ArduinoJson6114_000001::enable_if<true, ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*> >::type {aka ArduinoJson6114_000001::MemberProxy<ArduinoJson6114_000001::JsonDocument&, const char*>}')
-      // const char* val = jsonDoc["name"];
-
       location = jsonDoc["name"].as<String>(); // is empty
       temperature = jsonDoc["main"]["temp"].as<String>();
       weather = jsonDoc["weather"]["main"].as<String>();
@@ -272,6 +244,7 @@ class Weather {
       windSpeed =  jsonDoc["wind"]["speed"].as<float>();
       clouds =  jsonDoc["clouds"]["all"].as<int>();
       setWindDirection();
+      setCoverage();
       //Serial.println("WEATHER | update | FILLED STRINGS and NUMBERS");
 
       //Serial.print("WEATHER | WeatherID: ");
@@ -293,7 +266,7 @@ class Weather {
 
     int windDeg;
     int clouds;
-
+    
     // wind ($windDiresciton ($windSpeed ms1))
 
     String windDirection;
@@ -304,7 +277,8 @@ class Weather {
     String temperature;
     String temperatureMax;
     String temperatureMin;
-
+    String coverage;
+     
     String weather;
     String description;
     String idString;
@@ -316,8 +290,25 @@ class Weather {
       Serial2.write(0xff);
       Serial2.write(0xff);
     }
-
-    // check it, no need to test for speed zero (will be taken care of in sendDatatoNextion())
+    
+    // sets coverage from clouds
+    void setCoverage(){
+      if (clouds == 100) {
+        coverage = "overcast";
+      } else if (clouds > 87) {
+        coverage = "broken";
+      } else if (clouds > 62) {
+        coverage = "mostly cloudy";
+      } else if (clouds > 37) {
+        coverage = "partly cloudy";
+      } else if (clouds > 12) {
+        coverage = "mostly sunny";
+      } else {
+        coverage = "sunny";
+      }  
+    }
+    
+    // sets wind direction from angle of wind
     void setWindDirection() {
       if (windDeg >= 338) {
         windDirection = "North";

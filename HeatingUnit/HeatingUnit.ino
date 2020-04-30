@@ -8,9 +8,9 @@
 #include <esp_now.h>
 #include <WiFi.h>
 #include <EEPROM.h>
-#include "PCA9554.h"  // Load the PCA9554 Library
-#include "ClosedCube_TCA9548A.h"
-#include "ADS1100.h"
+#include <PCA9554.h>  // Load the PCA9554 Library
+#include <ClosedCube_TCA9548A.h>
+#include <ADS1100.h>
 
 
 
@@ -402,7 +402,8 @@ void setup() {
   M5.Lcd.println("ADC1   Ch: 1 Addr: 0x48");
   M5.Lcd.setCursor(25, 135);
   M5.Lcd.println("ADC2   Ch: 2 Addr: 0x48");
-  
+
+  // nastavení IO extenderu
   uint8_t returnCode = 0;
   uint8_t channel = 0;
   tca9548a.address(PaHub_I2C_ADDRESS); // set up hub address
@@ -417,7 +418,7 @@ void setup() {
 
 int val;
 byte count = 0;
-
+float temperature;
 void loop() {
   
   tempSensor.requestTemperatures();

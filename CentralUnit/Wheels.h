@@ -1,10 +1,8 @@
 // Class takes care of wheel preasure.
-// Is not currently displayed on Nextion.
+// Not currently displayed on Nextion.
 #ifndef WHEELS_H
 #define WHEELS_H
 #include "UnitAbstract.h"
-// all calculation of water levels will be done on sensor unit
-// first portion of structure are data from unit, second is configuration (seperated by space)
 class Wheels : public UnitAbstract{
   public:
     // edit later
