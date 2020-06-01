@@ -195,6 +195,7 @@ void refreshScreen() {
   water.updateDataOnNextion();
   security.updateDataOnNextion();
   powerAndHeating.updateDataOnNextion();
+  wheels.updateDataOnNextion();
 }
 
 // checks if we had already registred MAC in espInfo
@@ -784,7 +785,7 @@ void setup() {
   timeClient.begin();
   updateTime();
   weather.update();
-  weather.usePictureOnNextion(false);
+  weather.usePictureOnNextion(true);
   Serial.println("CU | SETUP | FINISHED");
 }
 

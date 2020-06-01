@@ -1,4 +1,4 @@
-// class which takes care of weather
+// class which takes care of gweather
 #ifndef WEATHER_H
 #define WEATHER_H
 #include <Ethernet2.h>
