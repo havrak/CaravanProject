@@ -27,6 +27,7 @@ class Weather {
     void updateDataOnNextion(int hours) {
       String command;
       startEndNextionCommand();
+      hours = hour();
       command = "textWTemp.txt=\"" + temperature + "°C\"";
       Serial2.print(command);
       startEndNextionCommand();
@@ -392,6 +393,8 @@ class Weather {
     void vidClear(int hours) {
       if (hours > 4 || hours < 20) {
         startEndNextionCommand();
+        Serial.print("WEATHER | vidClear| hours:");
+        Serial.println(hours);
         Serial2.print("vidWeather.vid=10");
         startEndNextionCommand();
       } else {

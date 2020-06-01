@@ -712,7 +712,7 @@ void displayTime() {
     command = "numMin.val=" + String(minute());
     Serial2.print(command);
     startEndNextionCommand();
-    command = "numHour.val=" + String(hour());
+    command = "numHours.val=" + String(hour());
     Serial2.print(command);
     startEndNextionCommand();
     command = "numDay.val=" + String(day());
@@ -779,13 +779,15 @@ void setup() {
   editTime.attachPop(timeManualCallback,&editTime);
   
   connection.displayUnknownState();
-
-
+  startEndNextionCommand(); 
+  Serial2.print("maxTemp.val=30");
+  startEndNextionCommand(); 
+  
 
   timeClient.begin();
   updateTime();
   weather.update();
-  weather.usePictureOnNextion(true);
+  //weather.usePictureOnNextion(true);
   Serial.println("CU | SETUP | FINISHED");
 }
 

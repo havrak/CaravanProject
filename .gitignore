@@ -2,3 +2,5 @@
 libraries
 [^\.]*.bin
 [^\.]*.elf
+.other
+.MOV Backup

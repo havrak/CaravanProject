@@ -318,7 +318,7 @@ void sendData() {
 
   data.connectionToWaterSource = connectionToWaterSource;
   data.litersRemaining = litersRemaining;
-  data.temperature = temperature;
+  data.temperature = waterTemperature;
   data.validityOfData = validityOfData;
   data.heating = heatingOn;
 
@@ -556,6 +556,10 @@ int val;
 byte count = 0;
 
 void loop() {
+  if (M5.BtnA.wasReleased()) {
+    identifyTemperatureSensors();
+  }
+  
   M5.Lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setTextFont(4);
@@ -600,12 +604,16 @@ void loop() {
   M5.Lcd.print("Teplota :");
   M5.Lcd.print(waterTemperature);
 
+  M5.Lcd.setCursor(0, 150);
+  M5.Lcd.print("1. tlačítko spustí");
+  M5.Lcd.print("identifikaci senzorů");
+  
   Serial.print("Connection to water : "); Serial.println(connectionToWaterSource);
   Serial.print("Preasure            : "); Serial.println(val);
   Serial.print("Top                 : "); Serial.println(topTankSensor);
   Serial.print("Bottom              : "); Serial.println(bottomTankSensor);
   Serial.print("Heating             : "); Serial.println(heatingOn);
-  Serial.print("Temperature         : "); Serial.println(temperature);
+  //Serial.print("Temperature         : "); Serial.println(watertemperature);
  
   // heatingOn = false;
   // bool connectionToWaterSource;
@@ -657,10 +665,10 @@ void loop() {
     litersRemaining = remainderWhenLowSensorHitted;
     validityOfData = 0;
   }
-  if (temperature < 2) {
+  if (waterTemperature < 2) {
     heatingOn = true;
     digitalWrite(RELEHEAT, HIGH);
-  } else if (heatingOn && temperature >= 5) {
+  } else if (heatingOn && waterTemperature >= 5) {
     heatingOn = true;
     digitalWrite(RELEHEAT, LOW);
   }
