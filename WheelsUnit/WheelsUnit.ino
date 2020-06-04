@@ -1,4 +1,4 @@
-// NOTE: 
+// NOTE:
 // Send all data after reciving new configuration
 // this call contain some constants you can find those for your specific hardware via WaterTest
 #include <M5Stack.h>
@@ -30,8 +30,8 @@ int lastTimeDataRecived = 0;
 
 
 
-  
-struct SendRecvDataStruct{
+
+struct SendRecvDataStruct {
   float FLPreassure;
   float FRPreassure;
   float RLPreassure;
@@ -59,8 +59,8 @@ int StrToHex(char str[])
   return (int) strtol(str, 0, 16);
 }
 
-unsigned long getTimeDiffrence(unsigned long sTime){
-  if(millis() < sTime){
+unsigned long getTimeDiffrence(unsigned long sTime) {
+  if (millis() < sTime) {
     return (ULONG_MAX - sTime) + millis();
   }
   return millis() - sTime;
@@ -70,16 +70,16 @@ char * TurnByteOrder (char instr[])
 {
   int i;
   static char outstr[40] ;
-  i=0;
+  i = 0;
   memset(outstr, 0, sizeof(outstr));
   while  (i < strlen(instr)) {
-    outstr[i] = instr[strlen(instr)-2-i];
-    outstr[i+1] = instr[strlen(instr)-1-i];
+    outstr[i] = instr[strlen(instr) - 2 - i];
+    outstr[i + 1] = instr[strlen(instr) - 1 - i];
     i++;
     i++;
   }
   i--;
-  outstr[strlen(instr)+1] = '\0';
+  outstr[strlen(instr) + 1] = '\0';
   return outstr;
 }
 
@@ -109,84 +109,84 @@ long RRScanTime;
 
 class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
     void onResult(BLEAdvertisedDevice advertisedDevice) {
-        preassure = 0;
-        temperature = 0;
-        batt = 0;
-        if (strstr (advertisedDevice.getName().c_str(),"TPMS")) {
-          char *pHex = BLEUtils::buildHexData(nullptr, (uint8_t*)advertisedDevice.getManufacturerData().data(), advertisedDevice.getManufacturerData().length());
-          strcpy (manData,pHex);
-          char *temperatureHex = manData + 24;
-          temperatureHex[4] = '\0';
-          Serial.printf("TempHex >%s< \n", temperatureHex);
-          temperature = StrToHex(TurnByteOrder(temperatureHex));
+      preassure = 0;
+      temperature = 0;
+      batt = 0;
+      if (strstr (advertisedDevice.getName().c_str(), "TPMS")) {
+        char *pHex = BLEUtils::buildHexData(nullptr, (uint8_t*)advertisedDevice.getManufacturerData().data(), advertisedDevice.getManufacturerData().length());
+        strcpy (manData, pHex);
+        char *temperatureHex = manData + 24;
+        temperatureHex[4] = '\0';
+        Serial.printf("TempHex >%s< \n", temperatureHex);
+        temperature = StrToHex(TurnByteOrder(temperatureHex));
 
-          char *preassureHex = manData + 16;
-          preassureHex[8] = '\0';
-          Serial.printf("PreassureHex >%s< \n", preassureHex);
-          preassure = StrToHex(TurnByteOrder(preassureHex));
+        char *preassureHex = manData + 16;
+        preassureHex[8] = '\0';
+        Serial.printf("PreassureHex >%s< \n", preassureHex);
+        preassure = StrToHex(TurnByteOrder(preassureHex));
 
-          char *battHex = manData + 32;
-          battHex[2] = '\0';
-          Serial.printf("BattHex >%s< \n", battHex);
-          batt = StrToHex(TurnByteOrder(battHex));
+        char *battHex = manData + 32;
+        battHex[2] = '\0';
+        Serial.printf("BattHex >%s< \n", battHex);
+        batt = StrToHex(TurnByteOrder(battHex));
 
-          fpreassure = (float)preassure / 100000;
-          ftemperature = (float)temperature / 100;
-          ibatt = batt;
+        fpreassure = (float)preassure / 100000;
+        ftemperature = (float)temperature / 100;
+        ibatt = batt;
 
 
-          if (ftemperature > 327) {
-            ftemperature = ftemperature - 655.35;
-          }
-          
-          if (strstr (advertisedDevice.getName().c_str(),"10028D")) {
+        if (ftemperature > 327) {
+          ftemperature = ftemperature - 655.35;
+        }
 
-            sprintf(FLpreassure , "%4.2f" , fpreassure);
-            sprintf(FLtemperature , "%4.1f" , ftemperature);
-            data.FLPreassure=fpreassure;
-            data.FLTemperature=ftemperature;
-            data.FLBatt = ibatt;
-            FLScanTime = millis();
+        if (strstr (advertisedDevice.getName().c_str(), "10028D")) {
 
-          }
-
-           if (strstr (advertisedDevice.getName().c_str(),"200323")) {
-
-            sprintf(FRpreassure , "%4.2f" , fpreassure);
-            sprintf(FRtemperature , "%4.1f" , ftemperature);
-            data.FRPreassure=fpreassure;
-            data.FRTemperature=ftemperature;
-            data.FRBatt = ibatt;
-            FRScanTime = millis();
-
-          }
-
-          if (strstr (advertisedDevice.getName().c_str(),"3000DB")) {
-
-            sprintf(RLpreassure , "%4.2f" , fpreassure);
-            sprintf(RLtemperature , "%4.1f" , ftemperature);
-            data.RLPreassure=fpreassure;
-            data.RLTemperature=ftemperature;
-            data.RLBatt = ibatt;
-            RLScanTime = millis();
-
-          }
-
-          if (strstr (advertisedDevice.getName().c_str(),"400058")) {
-
-            sprintf(RRpreassure , "%4.2f" , fpreassure);
-            sprintf(RRtemperature , "%4.1f" , ftemperature);
-            data.RRPreassure=fpreassure;
-            data.RRTemperature=ftemperature;
-            data.RRBatt = ibatt;
-            RRScanTime = millis();
-
-          }
+          sprintf(FLpreassure , "%4.2f" , fpreassure);
+          sprintf(FLtemperature , "%4.1f" , ftemperature);
+          data.FLPreassure = fpreassure;
+          data.FLTemperature = ftemperature;
+          data.FLBatt = ibatt;
+          FLScanTime = millis();
 
         }
-      Serial.printf("Advertised Device: %s P:%i T:%i\n",advertisedDevice.toString().c_str(),preassure,temperature);
 
-      if (advertisedDevice.haveRSSI()){
+        if (strstr (advertisedDevice.getName().c_str(), "200323")) {
+
+          sprintf(FRpreassure , "%4.2f" , fpreassure);
+          sprintf(FRtemperature , "%4.1f" , ftemperature);
+          data.FRPreassure = fpreassure;
+          data.FRTemperature = ftemperature;
+          data.FRBatt = ibatt;
+          FRScanTime = millis();
+
+        }
+
+        if (strstr (advertisedDevice.getName().c_str(), "3000DB")) {
+
+          sprintf(RLpreassure , "%4.2f" , fpreassure);
+          sprintf(RLtemperature , "%4.1f" , ftemperature);
+          data.RLPreassure = fpreassure;
+          data.RLTemperature = ftemperature;
+          data.RLBatt = ibatt;
+          RLScanTime = millis();
+
+        }
+
+        if (strstr (advertisedDevice.getName().c_str(), "400058")) {
+
+          sprintf(RRpreassure , "%4.2f" , fpreassure);
+          sprintf(RRtemperature , "%4.1f" , ftemperature);
+          data.RRPreassure = fpreassure;
+          data.RRTemperature = ftemperature;
+          data.RRBatt = ibatt;
+          RRScanTime = millis();
+
+        }
+
+      }
+      Serial.printf("Advertised Device: %s P:%i T:%i\n", advertisedDevice.toString().c_str(), preassure, temperature);
+
+      if (advertisedDevice.haveRSSI()) {
         Serial.printf("Rssi: %d \n", (int)advertisedDevice.getRSSI());
       }
     }
@@ -194,18 +194,18 @@ class MyAdvertisedDeviceCallbacks: public BLEAdvertisedDeviceCallbacks {
 
 
 
-boolean checkIfTwoAddressesAreSame(const uint8_t *addr1,const uint8_t *addr2){
-  if(sizeof(addr1) != sizeof(addr2)){
+boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2) {
+  if (sizeof(addr1) != sizeof(addr2)) {
     return false;
   }
-  for(int i = 0; i < (sizeof(addr1)/sizeof(addr1[0])); i++){
-    if(addr1[i] != addr2[i]) return false;
+  for (int i = 0; i < (sizeof(addr1) / sizeof(addr1[0])); i++) {
+    if (addr1[i] != addr2[i]) return false;
   }
   return true;
 }
 
-// prints given mac address 
-void printAddress(const uint8_t addr[]){
+// prints given mac address
+void printAddress(const uint8_t addr[]) {
   for (int i = 0; i < 6; ++i ) {
     Serial.print((uint8_t) addr[i], HEX);
     if (i != 5) Serial.print(":");
@@ -214,8 +214,8 @@ void printAddress(const uint8_t addr[]){
 }
 
 // millis() counter resets every 50 days, gives time diffrence between millis() and sTime in argument
-unsigned long getTimeDiffrence(const unsigned long sTime){
-  if(millis() < sTime){
+unsigned long getTimeDiffrence(const unsigned long sTime) {
+  if (millis() < sTime) {
     return (ULONG_MAX - sTime) + millis();
   }
   return millis() - sTime;
@@ -234,26 +234,26 @@ void initESPNow() {
 }
 
 // first byte in/off EEPROM, 1 - 6 is masters mac
-void storeDataInEEPROM(){
-  if(EEPROM.read(0) == 0){ // limited number of writes
-      EEPROM.write(0,1);
+void storeDataInEEPROM() {
+  if (EEPROM.read(0) == 0) { // limited number of writes
+    EEPROM.write(0, 1);
   }
   uint8_t test[6];
-  for(int i=1 ; i < 7; i++ ){
-    test[i-1] = EEPROM.read(i);  
+  for (int i = 1 ; i < 7; i++ ) {
+    test[i - 1] = EEPROM.read(i);
   }
-  if(!checkIfTwoAddressesAreSame(test, central.peer_addr)){
+  if (!checkIfTwoAddressesAreSame(test, central.peer_addr)) {
     Serial.println("WU |storeDataInEEPROM | storing new central mac into EEPROM");
-    for(int i=1 ; i < 7; i++ ){
-      EEPROM.write(i,central.peer_addr[i-1]);  
+    for (int i = 1 ; i < 7; i++ ) {
+      EEPROM.write(i, central.peer_addr[i - 1]);
     }
   }
   // check if data is same
   EEPROM.commit();
 }
 
-// 
-void sendMyTypeToCentral(){
+//
+void sendMyTypeToCentral() {
   Serial.print("WU |sendMyTypeToCentral | sending my type to central, its mac is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
   uint8_t data = 103;
   esp_err_t result = esp_now_send(potencialCentral.peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
@@ -278,36 +278,36 @@ void sendMyTypeToCentral(){
 
 
 void onDataSent(const uint8_t *mac_addr, esp_now_send_status_t status) {
-  if(status != ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral && counter <10){ // try until data is send successfully
+  if (status != ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral && counter < 10) { // try until data is send successfully
     Serial.println("WU |onDataSent | Sending info failed");
     delay(100);
     sendMyTypeToCentral();
     counter++;
-  }else if (status == ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral){
+  } else if (status == ESP_NOW_SEND_SUCCESS && !sendedIMyTypeToCentral) {
     sendedIMyTypeToCentral = true;
-    counter=0;
+    counter = 0;
   }
   char macStr[18];
   snprintf(macStr, sizeof(macStr), "%02x:%02x:%02x:%02x:%02x:%02x", mac_addr[0], mac_addr[1], mac_addr[2], mac_addr[3], mac_addr[4], mac_addr[5]);
   Serial.print("WU |onDataSent | Last Packet Sent to: "); Serial.println(macStr);
   Serial.print("WU |onDataSent | Last Packet Send Status: "); Serial.println(status == ESP_NOW_SEND_SUCCESS ? "Delivery Success" : "Delivery Fail");
-  
+
 }
 
 void sendData() {
   Serial.println();
   Serial.println("WU |sendData | Sending data");
-  
-  data.FLScanTime =getTimeDiffrence(FLScanTime);
-  data.FRScanTime =getTimeDiffrence(FRScanTime);
-  data.RLScanTime =getTimeDiffrence(RLScanTime);
-  data.RRScanTime =getTimeDiffrence(RRScanTime);
+
+  data.FLScanTime = getTimeDiffrence(FLScanTime);
+  data.FRScanTime = getTimeDiffrence(FRScanTime);
+  data.RLScanTime = getTimeDiffrence(RLScanTime);
+  data.RRScanTime = getTimeDiffrence(RRScanTime);
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
   Serial.print("WU |sendData | Size of dataToBeSend is: "); Serial.println(sizeof(dataToBeSend));
-  
+
   esp_err_t result = esp_now_send(central.peer_addr, dataToBeSend, sizeof(dataToBeSend));
-  
+
   Serial.print("WU |sendData | Send Status: ");
   if (result == ESP_OK) {
     Serial.println("Success");
@@ -339,27 +339,27 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   Serial.print("WU |onDataRecv | Last Packet Recv from: "); Serial.println(macStr);
   Serial.print("WU |onDataRecv | Last Packet Recv Data: "); Serial.println(*data);
 
-  
-  if (*data == (uint8_t) 92){
-    if(checkIfTwoAddressesAreSame(potencialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potencialCentral.peer_addr, emptyEspInfo.peer_addr))){ // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potencialCentral wouldn't be empty
+
+  if (*data == (uint8_t) 92) {
+    if (checkIfTwoAddressesAreSame(potencialCentral.peer_addr, mac_addr) || (!isEEPROMinitialized && checkIfTwoAddressesAreSame(potencialCentral.peer_addr, emptyEspInfo.peer_addr))) { // after OR -- we recived info EEPROM was down yet we didn't foud any centaral so potencialCentral wouldn't be empty
       Serial.println("WU |onDataRecv | Set up central");
-      counter=0;
-      memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent,  sa d sa dsa sad 
+      counter = 0;
+      memcpy(central.peer_addr, mac_addr, sizeof(central.peer_addr)); // size if diffrent,  sa d sa dsa sad
       didCentralSendConfirmation = true;
       esp_err_t addStatus = esp_now_add_peer(&central);
-      lastTimeDataRecived = millis();    
+      lastTimeDataRecived = millis();
       Serial.print("WU |onDataRecv | Centrals mac address is: "); printAddress(central.peer_addr); Serial.println("");
       storeDataInEEPROM(); // save new central into EEPROM
-    }else  {
-      Serial.println("WU |onDataRecv | got 92 from unit I wasn't expecting");  
+    } else  {
+      Serial.println("WU |onDataRecv | got 92 from unit I wasn't expecting");
     }
   }
-  if(checkIfTwoAddressesAreSame(mac_addr, central.peer_addr)){
-      Serial.println("WU |onDataRecv | got some data");
-      lastTimeDataRecived = millis();
-      if(*data != (uint8_t) 88){ // check if message is not just a ping
-        // NEW CONFIGURATION IS PROCESSED HERE
-     }
+  if (checkIfTwoAddressesAreSame(mac_addr, central.peer_addr)) {
+    Serial.println("WU |onDataRecv | got some data");
+    lastTimeDataRecived = millis();
+    if (*data != (uint8_t) 88) { // check if message is not just a ping
+      // NEW CONFIGURATION IS PROCESSED HERE
+    }
   }
 }
 
@@ -386,7 +386,7 @@ void ScanForCentral() {
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          if(startTime == -1 || !checkIfTwoAddressesAreSame(potencialCentral.peer_addr, temp.peer_addr)){
+          if (startTime == -1 || !checkIfTwoAddressesAreSame(potencialCentral.peer_addr, temp.peer_addr)) {
             memcpy(potencialCentral.peer_addr, temp.peer_addr, sizeof(temp.peer_addr));
             potencialCentral.channel = 1;
             potencialCentral.encrypt = 0;
@@ -395,7 +395,7 @@ void ScanForCentral() {
             checkingAgaintsEEPROMmaster = false;
             sendMyTypeToCentral();
             noOfAttempts = 0;
-            if(!attempToPair()) startTime == -1;
+            if (!attempToPair()) startTime == -1;
           }
         }
       }
@@ -407,7 +407,7 @@ void ScanForCentral() {
 // tryes to pair with potencialCentral
 bool attempToPair() {
   Serial.print("WU |attempToPair | Processing: ");
-  
+
   for (int ii = 0; ii < 6; ++ii ) {
     Serial.print((uint8_t) potencialCentral.peer_addr[ii], HEX);
     if (ii != 5) Serial.print(":");
@@ -425,46 +425,46 @@ bool attempToPair() {
     } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
       Serial.println("ESPNOW Not Init");
       initESPNow();
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)){
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) {
         attempToPair();
       }
     } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
       Serial.println("Add Peer - Invalid Argument");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
       Serial.println("Peer list full");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory"); 
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      Serial.println("Out of memory");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
       Serial.println("Peer Exists");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else {
       Serial.println("Not sure what happened");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     }
     delay(100);
   }
-  if(noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
+  if (noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
   delay(50);
-  
+
 }
 
 // if central didin't send anything for 30 second we will delete her
-void deleteUnactiveCentral(){
-  if(getTimeDiffrence(lastTimeDataRecived) > 30000){
+void deleteUnactiveCentral() {
+  if (getTimeDiffrence(lastTimeDataRecived) > 30000) {
     Serial.println("WU |deleteUnactiveCentral | deleting");
     sendedIMyTypeToCentral = false;
-    didCentralSendConfirmation = false;  
+    didCentralSendConfirmation = false;
     potencialCentral = emptyEspInfo;
     central = emptyEspInfo;
-    
+
     esp_err_t delStatus = esp_now_del_peer(central.peer_addr);
     Serial.print("WU |deleteUnactiveCentral | Slave Delete Status: ");
     if (delStatus == ESP_OK) {
@@ -478,13 +478,13 @@ void deleteUnactiveCentral(){
       Serial.println("Peer not found.");
     } else {
       Serial.println("Not sure what happened");
-    } 
+    }
   }
 }
 
 void setup() {
   Serial.begin(115200);
-  Serial2.begin(9600, SERIAL_8N1,16,17);
+  Serial2.begin(9600, SERIAL_8N1, 16, 17);
   //Set device in AP mode to begin with
   WiFi.mode(WIFI_STA);
   // This is the mac address of the Slave in AP Mode
@@ -493,7 +493,7 @@ void setup() {
   initESPNow();
   esp_now_register_recv_cb(onDataRecv);
   esp_now_register_send_cb(onDataSent);
-  
+
   potencialCentral = emptyEspInfo;
   data.LastScanTime = 0;
   data.FLScanTime = 0;
@@ -501,7 +501,7 @@ void setup() {
   data.RLScanTime = 0;
   data.RRScanTime = 0;
   //data.timeMin = millis
-  
+
   BLEDevice::init("");
   BLEScan* pBLEScan = BLEDevice::getScan(); //create new scan
   pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
@@ -510,29 +510,29 @@ void setup() {
   pBLEScan->setInterval(100);
   pBLEScan->setWindow(99);  // less or equal setInterval value
 
-  
-  
+
+
   delay(500);
-  if (!EEPROM.begin(EEPROM_SIZE)){
+  if (!EEPROM.begin(EEPROM_SIZE)) {
     // we can't read from EEPROM
     Serial.println("CU | SETUP | failed to initialize EEPROM");
-  }else{
+  } else {
     isEEPROMinitialized = true;
-    if(EEPROM.read(0) == 0){
+    if (EEPROM.read(0) == 0) {
       Serial.println("CU | SETUP | EEPROM is empty");
-    }else{
+    } else {
       Serial.println("CU | SETUP | Loading data from EEPROM");
       for (int i = 0; i < 6; ++i ) {
-        potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
+        potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i + 1); // first byte is to check
       }
       potencialCentral.channel = 1; // pick a channel
       potencialCentral.encrypt = 0;
       Serial.print("WU |SETUP | Central address that i got from EEPROM is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
-      if(attempToPair()){ 
+      if (attempToPair()) {
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
       }
-  }
+    }
   }
   M5.begin();
 
@@ -543,24 +543,24 @@ int val;
 byte count = 0;
 
 void loop() {
-  
-  if(!didCentralSendConfirmation){
-    if(startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+
+  if (!didCentralSendConfirmation) {
+    if (startTime == -1 || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))) { // we waited too long to get a
       Serial.println("WU |LOOP | Scanning");
       ScanForCentral();
-    }else{
+    } else {
       Serial.println("WU |LOOP | Sending my type to central");
       sendMyTypeToCentral();
       delay(75);
     }
-  }else{
-    deleteUnactiveCentral();  
+  } else {
+    deleteUnactiveCentral();
   }
-  
-  if(count % 3 == 0 && didCentralSendConfirmation){
+
+  if (count % 3 == 0 && didCentralSendConfirmation) {
     count = 0;
     sendData();
   }
-  count++; 
+  count++;
   delay(1000);
 }

@@ -86,6 +86,9 @@ class Water : public UnitAbstract {
     float getTemperature() {
       return data.temperature;
     }
+    float getOuterTemp() {
+      return data.airTemperature;
+    }
     bool setUpSendConf(bool winter, bool minTemp) {
       if (sendConf.winter == winter && sendConf.minTemp == minTemp) return false;
       sendConf.winter = winter;
@@ -105,6 +108,7 @@ class Water : public UnitAbstract {
       byte validityOfData;
       float litersRemaining;
       float temperature;
+      float airTemperature;
       bool heating;
     };
     Data data;

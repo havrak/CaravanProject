@@ -44,7 +44,7 @@ class Weather {
       startEndNextionCommand();
       // Add zataženo, oblačno
       // clouds == 0 ??
-      
+
       command = "textWCloud.txt=\"" + coverage + "\"";
       Serial2.print(command);
       startEndNextionCommand();
@@ -166,7 +166,7 @@ class Weather {
         startEndNextionCommand();
         Serial2.print("vidWeather.aph=127");
         startEndNextionCommand();
-        
+
         Serial.print("WEATHER | dispaly | displayng: "); Serial.println(weatherID);
         if (weatherID >= 500 && weatherID <= 531) vidRain();
         else if (weatherID >= 300 && weatherID <= 321) vidDrizzle(hours);
@@ -236,6 +236,7 @@ class Weather {
 
       location = jsonDoc["name"].as<String>(); // is empty
       temperature = jsonDoc["main"]["temp"].as<String>();
+      temperatureFloat = jsonDoc["main"]["temp"].as<float>();
       weather = jsonDoc["weather"]["main"].as<String>();
       description = jsonDoc["weather"]["description"].as<String>();
       temperatureMax = jsonDoc["main"]["temp_max"].as<String>();
@@ -254,32 +255,35 @@ class Weather {
       startEndNextionCommand();
       return true;
     }
-
+    float getOuterTemp(){
+      return temperatureFloat;
+    }
   private:
     const char* servername = "api.openweathermap.org";
     String result;
     float lat;
     float lon;
     bool displayPicture;
-
+  
     // weather info
     int weatherID;
 
     int windDeg;
     int clouds;
-    
+
     // wind ($windDiresciton ($windSpeed ms1))
 
     String windDirection;
     float windSpeed;
-
+  
     String location;
     // all in one
     String temperature;
+    float temperatureFloat;
     String temperatureMax;
     String temperatureMin;
     String coverage;
-     
+
     String weather;
     String description;
     String idString;
@@ -291,9 +295,9 @@ class Weather {
       Serial2.write(0xff);
       Serial2.write(0xff);
     }
-    
+
     // sets coverage from clouds
-    void setCoverage(){
+    void setCoverage() {
       if (clouds == 100) {
         coverage = "overcast";
       } else if (clouds > 87) {
@@ -306,9 +310,9 @@ class Weather {
         coverage = "mostly sunny";
       } else {
         coverage = "sunny";
-      }  
+      }
     }
-    
+
     // sets wind direction from angle of wind
     void setWindDirection() {
       if (windDeg >= 338) {

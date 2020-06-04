@@ -123,6 +123,12 @@ NexTouch *nex_listen_list[] = {
 
 void NextionCheckHeatingConfiguration() {
   // voda - zima, temp
+  if (water.getEstablishedConnection()) {
+    powerAndHeating.setUpOuterTemp(water.getOuterTemp());
+  } else {
+    powerAndHeating.setUpOuterTemp(weather.getOuterTemp());
+  }
+
   uint32_t winterVal; winterBtn.getValue(&winterVal);
   uint32_t waterTempVal; waterTemp.getValue(&waterTempVal);
   bool temp1 = water.setUpSendConf(winterVal, waterTempVal);
@@ -839,14 +845,16 @@ void loop() {
     Serial.println("CU | LOOP | EEPROM was cleared");
     EEPROM.write(0, 0);
   }
-
+  if (interationCounter % 10 = 0) {
+    sendConfigurationt(); // sending can fail so its better to send conf reguraly
+  }
   if (interationCounter == 0) {
     updateTime();
     if (security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
     NextionCheckHeatingConfiguration();
     weather.update();
     refreshScreen();
-    interationCounter = 10;
+    interationCounter = 19;
     pingEachSesnorUnit();
   }
 

@@ -98,6 +98,7 @@ struct SendRecvDataStruct {
   byte validityOfData;
   float litersRemaining;
   float temperature;
+  float airTemperature;
   bool heating;
 };
 
@@ -379,7 +380,8 @@ void sendData() {
   data.temperature = waterTemperature;
   data.validityOfData = validityOfData;
   data.heating = heatingOn;
-
+  data.airTemperature = airTemperature;
+  
   uint8_t dataToBeSend[sizeof(data)];
   memcpy(dataToBeSend, &data, sizeof(data));
 
@@ -438,7 +440,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
       StructConf temp;
       if (sizeof(data) != sizeof(temp)) {
         memcpy(&temp, data, sizeof(data));
-        Serial.println("WU | onDataRecv | updatet configuration");
+        Serial.println("WU | onDataRecv | updated configuration");
       }
     }
   }
