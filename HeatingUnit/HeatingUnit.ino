@@ -174,7 +174,7 @@ struct SendDataStruct {
   double batteryState;
   double currentDraw;
   bool charging;
-  
+
   int iHeatingCircuits;
   float CurrentTempBUS1[4];
   int CurrentStatusBUS1[4];
@@ -347,13 +347,14 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     Serial.println("HU | onDataRecv | got some data");
     lastTimeDataRecived = millis();
     if (*data != (uint8_t) 88) { // check if message is not just a ping
-      if (sizeof(data) != sizeof(temp)) {
-        memcpy(&temp, data, sizeof(data));
+      if (sizeof(data) != sizeof(conf)) {
+        memcpy(&conf, data, sizeof(data));
         MaxTemperature = conf.limitFloorTemp;
         MaxTemperatureInside[1] = conf.airTemp;
         MaxTemperatureInside[2] = conf.airTemp;
         MaxSupportTemperatureInside[1] = conf.floorTempMax;
         MaxSupportTemperatureInside[2] = conf.floorTempMax;
+        //bLowTemperature = conf.heating;
         Serial.println("HU | onDataRecv | updated configuration");
       }
     }
@@ -383,7 +384,7 @@ void ScanForCentral() {
           for (int ii = 0; ii < 6; ++ii ) {
             temp.peer_addr[ii] = (uint8_t) mac[ii];
           }
-          if(startTime == -1 || !checkIfTwoAddressesAreSame(potencialCentral.peer_addr, temp.peer_addr)){
+          if (startTime == -1 || !checkIfTwoAddressesAreSame(potencialCentral.peer_addr, temp.peer_addr)) {
             memcpy(potencialCentral.peer_addr, temp.peer_addr, sizeof(temp.peer_addr));
             potencialCentral.channel = 1;
             potencialCentral.encrypt = 0;
@@ -392,7 +393,7 @@ void ScanForCentral() {
             checkingAgaintsEEPROMmaster = false;
             sendMyTypeToCentral();
             noOfAttempts = 0;
-            if(!attempToPair()) startTime == -1;
+            if (!attempToPair()) startTime == -1;
           }
         }
       }
@@ -405,7 +406,7 @@ void ScanForCentral() {
 // tryes to pair with potencialCentral
 bool attempToPair() {
   Serial.print("SU | attempToPair | Processing: ");
-  
+
   for (int ii = 0; ii < 6; ++ii ) {
     Serial.print((uint8_t) potencialCentral.peer_addr[ii], HEX);
     if (ii != 5) Serial.print(":");
@@ -423,46 +424,46 @@ bool attempToPair() {
     } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
       Serial.println("ESPNOW Not Init");
       initESPNow();
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)){
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) {
         attempToPair();
       }
     } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
       Serial.println("Add Peer - Invalid Argument");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
       Serial.println("Peer list full");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory"); 
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      Serial.println("Out of memory");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
       Serial.println("Peer Exists");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     } else {
       Serial.println("Not sure what happened");
-      if(noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair(); 
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
       noOfAttempts++;
     }
     delay(100);
   }
-  if(noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
+  if (noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
   delay(50);
-  
+
 }
 
 // if central didin't send anything for 30 second we will delete her
-void deleteUnactiveCentral(){
-  if(getTimeDiffrence(lastTimeDataRecived) > 30000){
+void deleteUnactiveCentral() {
+  if (getTimeDiffrence(lastTimeDataRecived) > 30000) {
     Serial.println("SU | deleteUnactiveCentral | deleting");
     sendedIMyTypeToCentral = false;
-    didCentralSendConfirmation = false;  
+    didCentralSendConfirmation = false;
     potencialCentral = emptyEspInfo;
     central = emptyEspInfo;
-    
+
     esp_err_t delStatus = esp_now_del_peer(central.peer_addr);
     Serial.print("SU | deleteUnactiveCentral | Slave Delete Status: ");
     if (delStatus == ESP_OK) {
@@ -476,7 +477,7 @@ void deleteUnactiveCentral(){
       Serial.println("Peer not found.");
     } else {
       Serial.println("Not sure what happened");
-    } 
+    }
   }
 }
 
@@ -499,7 +500,7 @@ void HeatingMain(void * pvParameters) {
         digitalWrite(iMasterRelayPin, HIGH); // vypnot masterRaley
 
         for (byte i = 0; i < iCircuitRelaysMax; i++) // projít všechny topné okruhy a vypnout je
-        { 
+        {
           pinMode(tempSensorsBUS1_PIN[i], OUTPUT);
           digitalWrite(tempSensorsBUS1_PIN[i], LOW);  //OFF
           CurrentStatusBUS1[i] = 0; // okruh je vypnutý
@@ -513,25 +514,34 @@ void HeatingMain(void * pvParameters) {
         digitalWrite(iMasterRelayPin, LOW);// zapteme rele, okruhy na okruzís se nic nemění
       }
       iLcdRow = iLcdRow + 2;
+      if (conf.heating) {
+        //delay (1000);
+        for (byte i = 0; i < iHeatingCircuits; i++) // procházíme všechny 4 okruhy
+        {
 
-      //delay (1000);
-      for (byte i = 0; i < iHeatingCircuits; i++) // procházíme všechny 4 okruhy
-      {
+          TempSensors_BUS1.requestTemperaturesByAddress(tempSensorsBUS1_Address[i]); // zbytečný řádek??????
+          CurrentTempBUS1[i] = TempSensors_BUS1.getTempC(tempSensorsBUS1_Address[i]); // aktualizujeme teplotu v daném okruhu
 
-        TempSensors_BUS1.requestTemperaturesByAddress(tempSensorsBUS1_Address[i]); // zbytečný řádek??????
-        CurrentTempBUS1[i] = TempSensors_BUS1.getTempC(tempSensorsBUS1_Address[i]); // aktualizujeme teplotu v daném okruhu
-
-        if ((bMasterRelayOn && bCircuitLowTemperature[i]) || (bMasterRelayOn && bCircuitLowSupportTemperature[i])) { // je zapnuté masterRele a je zaplý okruh || je zaptnuté masterRele a okruh topí na podporu?????
-          if ( (bCircuitLowTemperature[i] && CurrentTempBUS1[i]  < MaxTemperature) || (bCircuitLowSupportTemperature[i] && CurrentTempBUS1[i]  < MaxSupportTemperature)) {
-            digitalWrite(tempSensorsBUS1_PIN[i], HIGH);
-            if (CurrentStatusBUS1[i] == 0) {
-              lCircuitStartTime[i] = millis();
+          if ((bMasterRelayOn && bCircuitLowTemperature[i]) || (bMasterRelayOn && bCircuitLowSupportTemperature[i])) { // je zapnuté masterRele a je zaplý okruh || je zaptnuté masterRele a okruh topí na podporu?????
+            if ( (bCircuitLowTemperature[i] && CurrentTempBUS1[i]  < MaxTemperature) || (bCircuitLowSupportTemperature[i] && CurrentTempBUS1[i]  < MaxSupportTemperature)) {
+              digitalWrite(tempSensorsBUS1_PIN[i], HIGH);
+              if (CurrentStatusBUS1[i] == 0) {
+                lCircuitStartTime[i] = millis();
+              } else {
+                lCircuitRunTime[i] = lCircuitRunTime[i] + (millis() - lCircuitStartTime[i]);
+                lCircuitStartTime[i] = millis();
+              }
+              CurrentStatusBUS1[i] = 1;
+              M5.Lcd.setTextColor(TFT_GREEN);
             } else {
-              lCircuitRunTime[i] = lCircuitRunTime[i] + (millis() - lCircuitStartTime[i]);
-              lCircuitStartTime[i] = millis();
+              digitalWrite(tempSensorsBUS1_PIN[i], LOW);
+              if (CurrentStatusBUS1[i] == 1) {
+                lCircuitRunTime[i] = lCircuitRunTime[i] + (millis() - lCircuitStartTime[i]);
+              }
+              CurrentStatusBUS1[i] = 0;
+              M5.Lcd.setTextColor(TFT_RED);
             }
-            CurrentStatusBUS1[i] = 1;
-            M5.Lcd.setTextColor(TFT_GREEN);
+
           } else {
             digitalWrite(tempSensorsBUS1_PIN[i], LOW);
             if (CurrentStatusBUS1[i] == 1) {
@@ -540,60 +550,57 @@ void HeatingMain(void * pvParameters) {
             CurrentStatusBUS1[i] = 0;
             M5.Lcd.setTextColor(TFT_RED);
           }
+          M5.Lcd.setCursor(0, iLcdRow * 24);
+          M5.Lcd.print(tempSensorsBUS1_Name[i]);
+          M5.Lcd.setCursor(200, iLcdRow * 24);
+          M5.Lcd.print(CurrentTempBUS1[i]);
+          iLcdRow = iLcdRow + 1;
 
-        } else {
-          digitalWrite(tempSensorsBUS1_PIN[i], LOW);
-          if (CurrentStatusBUS1[i] == 1) {
-            lCircuitRunTime[i] = lCircuitRunTime[i] + (millis() - lCircuitStartTime[i]);
+        }
+
+
+        for (byte i = 0; i < iExternSensors; i++)
+        {
+
+          TempSensors_BUS2.requestTemperaturesByAddress(tempSensorsBUS2_Address[i]);
+          CurrentTempBUS2[i] = TempSensors_BUS2.getTempC(tempSensorsBUS2_Address[i]);
+
+
+
+          M5.Lcd.setTextColor(TFT_YELLOW);
+          M5.Lcd.setCursor(0, iLcdRow * 24);
+          M5.Lcd.print(tempSensorsBUS2_Name[i]);
+          M5.Lcd.setCursor(200, iLcdRow * 24);
+          M5.Lcd.print(CurrentTempBUS2[i]);
+          iLcdRow = iLcdRow + 1;
+
+        }
+
+        bLowTemperature = false;
+
+        for (byte i = 0; i < iHeatingCircuits; i++) {
+          if (CurrentTempBUS2[tempSensorsBUS1_Mapping[i]] < MaxTemperatureInside[tempSensorsBUS1_Mapping[i]]  && CurrentTempBUS2[TemperatureExternSensorOutside] < MaxTemperatureOutside) {
+            bLowTemperature = true;
+            bCircuitLowTemperature[i] = true;
+          } else {
+            bCircuitLowTemperature[i] = false;
           }
-          CurrentStatusBUS1[i] = 0;
-          M5.Lcd.setTextColor(TFT_RED);
-        }
-        M5.Lcd.setCursor(0, iLcdRow * 24);
-        M5.Lcd.print(tempSensorsBUS1_Name[i]);
-        M5.Lcd.setCursor(200, iLcdRow * 24);
-        M5.Lcd.print(CurrentTempBUS1[i]);
-        iLcdRow = iLcdRow + 1;
 
-      }
-
-
-      for (byte i = 0; i < iExternSensors; i++)
-      {
-
-        TempSensors_BUS2.requestTemperaturesByAddress(tempSensorsBUS2_Address[i]);
-        CurrentTempBUS2[i] = TempSensors_BUS2.getTempC(tempSensorsBUS2_Address[i]);
-
-
-
-        M5.Lcd.setTextColor(TFT_YELLOW);
-        M5.Lcd.setCursor(0, iLcdRow * 24);
-        M5.Lcd.print(tempSensorsBUS2_Name[i]);
-        M5.Lcd.setCursor(200, iLcdRow * 24);
-        M5.Lcd.print(CurrentTempBUS2[i]);
-        iLcdRow = iLcdRow + 1;
-
-      }
-
-      bLowTemperature = false;
-
-      for (byte i = 0; i < iHeatingCircuits; i++) {
-        if (CurrentTempBUS2[tempSensorsBUS1_Mapping[i]] < MaxTemperatureInside[tempSensorsBUS1_Mapping[i]]  && CurrentTempBUS2[TemperatureExternSensorOutside] < MaxTemperatureOutside) {
-          bLowTemperature = true;
-          bCircuitLowTemperature[i] = true;
-        } else {
-          bCircuitLowTemperature[i] = false;
+          if (CurrentTempBUS2[tempSensorsBUS1_Mapping[i]] >= MaxTemperatureInside[tempSensorsBUS1_Mapping[i]] && CurrentTempBUS2[tempSensorsBUS1_Mapping[i]] < MaxSupportTemperatureInside[tempSensorsBUS1_Mapping[i]] && CurrentTempBUS2[TemperatureExternSensorOutside] < MaxSupportTemperatureOutside) {
+            bLowTemperature = true;
+            bCircuitLowSupportTemperature[i] = true;
+          } else {
+            bCircuitLowSupportTemperature[i] = false;
+          }
         }
 
-        if (CurrentTempBUS2[tempSensorsBUS1_Mapping[i]] >= MaxTemperatureInside[tempSensorsBUS1_Mapping[i]] && CurrentTempBUS2[tempSensorsBUS1_Mapping[i]] < MaxSupportTemperatureInside[tempSensorsBUS1_Mapping[i]] && CurrentTempBUS2[TemperatureExternSensorOutside] < MaxSupportTemperatureOutside) {
-          bLowTemperature = true;
-          bCircuitLowSupportTemperature[i] = true;
-        } else {
-          bCircuitLowSupportTemperature[i] = false;
+        LastRefresh = millis();
+      } else {
+        bLowTemperature = false;
+        for (byte i = 0; i < iHeatingCircuits; i++) {
+          digitalWrite(tempSensorsBUS1_PIN[i], LOW);
         }
       }
-
-      LastRefresh = millis();
     }
 
     delay(1000);
@@ -640,28 +647,28 @@ void setup() {
   timerAlarmWrite(timer, wdtTimeout * 1000, false); //set time in us
   timerAlarmEnable(timer);                          //enable interrupt
   delay(500);
-  if (!EEPROM.begin(EEPROM_SIZE)){
+  if (!EEPROM.begin(EEPROM_SIZE)) {
     // we can't read from EEPROM
     Serial.println("CU | SETUP | failed to initialize EEPROM");
-  }else{
+  } else {
     isEEPROMinitialized = true;
-    if(EEPROM.read(0) == 0){
+    if (EEPROM.read(0) == 0) {
       Serial.println("CU | SETUP | EEPROM is empty");
-    }else{
+    } else {
       Serial.println("CU | SETUP | Loading data from EEPROM");
       for (int i = 0; i < 6; ++i ) {
-        potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i+1);// first byte is to check
+        potencialCentral.peer_addr[i] = (uint8_t) EEPROM.read(i + 1); // first byte is to check
       }
       potencialCentral.channel = 1; // pick a channel
       potencialCentral.encrypt = 0;
       Serial.print("SU | SETUP | Central address that i got from EEPROM is: "); printAddress(potencialCentral.peer_addr); Serial.println("");
-      if(attempToPair()){ 
+      if (attempToPair()) {
         checkingAgaintsEEPROMmaster = true;
         startTime = millis();
       }
     }
   }
-
+  conf.heating = true;
   // Task 2
   xTaskCreatePinnedToCore(
     HeatingMain,     /* Function to implement the task */
@@ -679,23 +686,23 @@ float temperature;
 void loop() {
 
   M5.update();
-  if(!didCentralSendConfirmation){
-    if((startTime == -1&& !checkingAgaintsEEPROMmaster) || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))){ // we waited too long to get a
+  if (!didCentralSendConfirmation) {
+    if ((startTime == -1 && !checkingAgaintsEEPROMmaster) || (getTimeDiffrence(startTime) > (checkingAgaintsEEPROMmaster ? 15000 : 10000))) { // we waited too long to get a
       Serial.println("SU | LOOP | Scanning");
       ScanForCentral();
-    }else{
+    } else {
       Serial.println("SU | LOOP | Sending my type to central");
       sendMyTypeToCentral();
       delay(75);
     }
-  }else{
-    deleteUnactiveCentral();  
+  } else {
+    deleteUnactiveCentral();
   }
-  
-  if(count % 3 == 0 && didCentralSendConfirmation){
+
+  if (count % 3 == 0 && didCentralSendConfirmation) {
     count = 0;
     sendData();
   }
-  count++; 
+  count++;
   delay(1000);
 }
