@@ -54,6 +54,9 @@ bool bottomTankSensor;
 int pulseCounter;
 byte validityOfData;
 
+bool winter;
+int minWaterTemp = 2;
+
 int indexOfOuterTemp;
 int indexOfInnerTemp;
 
@@ -98,6 +101,11 @@ struct SendRecvDataStruct {
   bool heating;
 };
 
+struct StructConf {
+  bool winter;
+  int minTemp;
+};
+
 // Init ESP Now with fallback
 void initESPNow() {
   WiFi.disconnect();
@@ -108,6 +116,56 @@ void initESPNow() {
     Serial.println("ESPNow Init Failed");
     ESP.restart();
   }
+}
+
+bool attempToPair() {
+  Serial.print("WU | attempToPair | Processing: ");
+
+  for (int ii = 0; ii < 6; ++ii ) {
+    Serial.print((uint8_t) potencialCentral.peer_addr[ii], HEX);
+    if (ii != 5) Serial.print(":");
+  }
+  Serial.print(", Status:");
+
+  // check if the peer exists
+  if (!esp_now_is_peer_exist(potencialCentral.peer_addr)) {
+    Serial.println("Pairing");
+    esp_err_t addStatus = esp_now_add_peer(&potencialCentral);
+    if (addStatus == ESP_OK) {
+      Serial.println("Paired");
+      sendMyTypeToCentral();
+      return true;
+    } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
+      Serial.println("ESPNOW Not Init");
+      initESPNow();
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) {
+        attempToPair();
+      }
+    } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
+      Serial.println("Add Peer - Invalid Argument");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      noOfAttempts++;
+    } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
+      Serial.println("Peer list full");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      noOfAttempts++;
+    } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
+      Serial.println("Out of memory");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      noOfAttempts++;
+    } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
+      Serial.println("Peer Exists");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      noOfAttempts++;
+    } else {
+      Serial.println("Not sure what happened");
+      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
+      noOfAttempts++;
+    }
+    delay(100);
+  }
+  if (noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
+  delay(50);
 }
 
 // counting speed is diffrent than what it should be
@@ -236,10 +294,10 @@ float tempTemp2;
 void storeAddressesInEEPROM(DeviceAddress inner, DeviceAddress outer) {
   EEPROM.write(18, 1);
   for (int i = 19; i < 27; i++) { // address for inner sensor
-     EEPROM.write(i,tempDeviceAddressA[i - 19]);
+    EEPROM.write(i, tempDeviceAddressA[i - 19]);
   }
   for (int i = 27; i < 35; i++) { // address for outer sensor
-     EEPROM.write(i,tempDeviceAddressA[i - 27]);
+    EEPROM.write(i, tempDeviceAddressA[i - 27]);
   }
 }
 
@@ -252,7 +310,7 @@ void identifyTemperatureSensors() {
     M5.Lcd.setCursor(0, 150);
     M5.Lcd.print("Warm sensor in tank by 3 degrees");
     while (tempSensor.getTempCByIndex(0) - tempTemp1 < 3 || tempSensor.getTempCByIndex(1) - tempTemp2 < 3) delay(1); // wait
-    
+
     tempSensor.getAddress(tempDeviceAddressA, 0);
     tempSensor.getAddress(tempDeviceAddressB, 1);
     if (tempSensor.getTempCByIndex(0) - tempTemp1 >= 3) { // sensor on index 0 is in water
@@ -264,7 +322,7 @@ void identifyTemperatureSensors() {
       indexOfInnerTemp = 1;
       storeAddressesInEEPROM(tempDeviceAddressB, tempDeviceAddressA);
     }
-  }else{
+  } else {
     Serial.print("WU | identifyTemperatureSensors | two sensors weren't detected");
   }
 }
@@ -377,6 +435,11 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     lastTimeDataRecived = millis();
     if (*data != (uint8_t) 88) { // check if message is not just a ping
       // NEW CONFIGURATION IS PROCESSED HERE
+      StructConf temp;
+      if (sizeof(data) != sizeof(temp)) {
+        memcpy(&temp, data, sizeof(data));
+        Serial.println("WU | onDataRecv | updatet configuration");
+      }
     }
   }
 }
@@ -424,56 +487,7 @@ void ScanForCentral() {
 }
 
 // tryes to pair with potencialCentral
-bool attempToPair() {
-  Serial.print("WU | attempToPair | Processing: ");
 
-  for (int ii = 0; ii < 6; ++ii ) {
-    Serial.print((uint8_t) potencialCentral.peer_addr[ii], HEX);
-    if (ii != 5) Serial.print(":");
-  }
-  Serial.print(", Status:");
-
-  // check if the peer exists
-  if (!esp_now_is_peer_exist(potencialCentral.peer_addr)) {
-    Serial.println("Pairing");
-    esp_err_t addStatus = esp_now_add_peer(&potencialCentral);
-    if (addStatus == ESP_OK) {
-      Serial.println("Paired");
-      sendMyTypeToCentral();
-      return true;
-    } else if (addStatus == ESP_ERR_ESPNOW_NOT_INIT) {
-      Serial.println("ESPNOW Not Init");
-      initESPNow();
-      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) {
-        attempToPair();
-      }
-    } else if (addStatus == ESP_ERR_ESPNOW_ARG) {
-      Serial.println("Add Peer - Invalid Argument");
-      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
-      noOfAttempts++;
-    } else if (addStatus == ESP_ERR_ESPNOW_FULL) {
-      Serial.println("Peer list full");
-      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
-      noOfAttempts++;
-    } else if (addStatus == ESP_ERR_ESPNOW_NO_MEM) {
-      Serial.println("Out of memory");
-      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
-      noOfAttempts++;
-    } else if (addStatus == ESP_ERR_ESPNOW_EXIST) {
-      Serial.println("Peer Exists");
-      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
-      noOfAttempts++;
-    } else {
-      Serial.println("Not sure what happened");
-      if (noOfAttempts < (checkingAgaintsEEPROMmaster ? 16 : 8)) attempToPair();
-      noOfAttempts++;
-    }
-    delay(100);
-  }
-  if (noOfAttempts >= (checkingAgaintsEEPROMmaster ? 16 : 8)) return false;
-  delay(50);
-
-}
 
 // deletes unactive cenral (if no data/ping was recieved for 30 seconds)
 void deleteUnactiveCentral() {
@@ -559,7 +573,7 @@ void loop() {
   if (M5.BtnA.wasReleased()) {
     identifyTemperatureSensors();
   }
-  
+
   M5.Lcd.setTextColor(TFT_YELLOW, TFT_BLACK);
   M5.Lcd.setTextSize(1);
   M5.Lcd.setTextFont(4);
@@ -607,30 +621,30 @@ void loop() {
   M5.Lcd.setCursor(0, 150);
   M5.Lcd.print("1. tlačítko spustí");
   M5.Lcd.print("identifikaci senzorů");
-  
+
   Serial.print("Connection to water : "); Serial.println(connectionToWaterSource);
   Serial.print("Preasure            : "); Serial.println(val);
   Serial.print("Top                 : "); Serial.println(topTankSensor);
   Serial.print("Bottom              : "); Serial.println(bottomTankSensor);
   Serial.print("Heating             : "); Serial.println(heatingOn);
   //Serial.print("Temperature         : "); Serial.println(watertemperature);
- 
+
   // heatingOn = false;
   // bool connectionToWaterSource;
 
   // float litersRemaining;
   // float waterTemperature;
   // float airTemperature;
-  if(waterTemperature < 3 && !heatingOn){
+  if (waterTemperature < 3 && !heatingOn) {
     Serial.println("WU | LOOP | turning on heating");
-    heatingOn=true;
+    heatingOn = true;
     digitalWrite(RELEHEAT, HIGH);
-  } else if(waterTemperature > 8 && !heatingOn){
+  } else if (waterTemperature > 8 && !heatingOn) {
     Serial.println("WU | LOOP | turning off heating");
-    heatingOn=false;
+    heatingOn = false;
     digitalWrite(RELEHEAT, LOW);
   }
-   
+
   if (connectionToWaterSource && airTemperature > 1 && !topTankSensor && !relayOpen) {
     // we can refill tank
     Serial.println("Refilling");
@@ -639,7 +653,7 @@ void loop() {
     //digitalWrite(RELEVALV, HIGH);
     relayOpen = true;
     // add value for refilling
-  } else if (topTankSensor) { // relayOpen && 
+  } else if (topTankSensor) { // relayOpen &&
     // close reffiling of tank
     Serial.println("Refilling finished");
     //digitalWrite(RELEVALV, LOW);
@@ -665,10 +679,10 @@ void loop() {
     litersRemaining = remainderWhenLowSensorHitted;
     validityOfData = 0;
   }
-  if (waterTemperature < 2) {
+  if (waterTemperature <= minWaterTemp) {
     heatingOn = true;
     digitalWrite(RELEHEAT, HIGH);
-  } else if (heatingOn && waterTemperature >= 5) {
+  } else if (heatingOn && waterTemperature >= minWaterTemp + 1) {
     heatingOn = true;
     digitalWrite(RELEHEAT, LOW);
   }

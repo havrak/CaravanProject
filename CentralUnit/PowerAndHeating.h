@@ -80,8 +80,8 @@ class PowerAndHeating : public UnitAbstract{
     };
     
     uint8_t getDataToBeSend(){
-      uint8_t bs[sizeof(data)]; 
-      memcpy(bs, &data, sizeof(data));
+      uint8_t bs[sizeof(sendConf)]; 
+      memcpy(bs, &sendConf, sizeof(sendConf));
       return *bs;
     }
 
@@ -95,14 +95,54 @@ class PowerAndHeating : public UnitAbstract{
     double getCurrentDrawn(){
       return data.currentDrawn;
     }
+    bool setUpSendConf(bool heating, bool winter, bool cycle1, bool cycle2, bool cycle3, bool cycle4, int airTemp, int airTempTol, int floorTempMax, int limitFloorTemp){
+      if (sendConf.heating == heating &&
+        sendConf.winter == winter &&
+        sendConf.cycle1 == cycle1 &&
+        sendConf.cycle2 == cycle2 &&
+        sendConf.cycle3 == cycle3 &&
+        sendConf.cycle4 == cycle4 &&
+        sendConf.airTemp == airTemp &&
+        sendConf.airTempTol == airTempTol &&
+        sendConf.floorTempMax == floorTempMax &&
+        sendConf.limitFloorTemp == limitFloorTemp)
+      return false;
+
+      sendConf.heating = heating;
+      sendConf.winter = winter;
+      sendConf.cycle1 = cycle1;
+      sendConf.cycle2 = cycle2;
+      sendConf.cycle3 = cycle3;
+      sendConf.cycle4 = cycle4;
+      sendConf.airTemp = airTemp;
+      sendConf.airTempTol = airTempTol;
+      sendConf.floorTempMax = floorTempMax;
+      sendConf.limitFloorTemp = limitFloorTemp;
+      return true;
+    }
 
   private:
+    struct SendConf{
+      bool heating;
+      bool winter;
+      bool cycle1;
+      bool cycle2;
+      bool cycle3;
+      bool cycle4;
+      int airTemp;
+      int airTempTol;
+      int floorTempMax;
+      int limitFloorTemp;
+    };
+    SendConf sendConf;
+  
     struct Data{
       bool connectionToPowerOutlet;
       double batteryState;
       double currentDrawn;
       bool charging;
-      float temperaturesFloor[6];
+      float temperaturesFloor[3];
+      float temperaturesAir[3];
       bool isHeatingOn;
       float amperesMax;
     };

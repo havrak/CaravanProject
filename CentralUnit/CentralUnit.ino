@@ -80,20 +80,18 @@ NexNumber numMonth = NexNumber(2, 47, "numMonth");
 NexNumber numDay = NexNumber(2, 46, "numDay");
 NexNumber numYear = NexNumber(2, 48, "numYear");
 // heating
-NexDSButton cycleOneBtn = NexDSButton(1, 50, "cycle1");
-NexDSButton cycleTwoBtn = NexDSButton(1, 49, "cycle2");
-NexDSButton cycleThreeBtn = NexDSButton(1, 48, "cycle3");
-NexDSButton cycleFourBtn = NexDSButton(1, 47, "cycle4");
-NexDSButton heatingOnOff = NexDSButton(1, 51, "heatingOnOff");
+NexDSButton cycleOneBtn = NexDSButton(1, 49, "cycle1");
+NexDSButton cycleTwoBtn = NexDSButton(1, 53, "cycle2");
+NexDSButton cycleThreeBtn = NexDSButton(1, 52, "cycle3");
+NexDSButton cycleFourBtn = NexDSButton(1, 51, "cycle4");
+NexDSButton heatingOnOff = NexDSButton(1, 50, "heatingOnOff");
+NexDSButton winterBtn = NexDSButton(1, 48, "winterBtn");
 NexNumber airTemp = NexNumber(2, 42, "airTemp");
 NexNumber floorTemp = NexNumber(2, 41, "floorTemp");
-NexNumber limitFloorTemp = NexNumber(2, 52, "maxTemp");
-
-NexTouch *nex_listen_list[] = {
-  &changeConBtn,  // Button added
-  &editTime,
-  NULL
-};
+NexNumber maxFloorTemp = NexNumber(2, 52, "maxTemp");
+NexNumber limitFloorTemp = NexNumber(2, 63, "limitFloorTemp");
+NexNumber waterTemp = NexNumber(2, 56, "waterTemp");
+NexNumber airTempTol = NexNumber(2, 60, "airTempTol");
 
 byte noOfAttempts = 0; // how many times have we tried to establish and verify connection
 
@@ -116,6 +114,40 @@ Wheels wheels;
 Connection connection;     // unsafe, crashes whole unit
 Weather weather(49.233056, 17.666944); // lat and lon of Zlin
 
+NexTouch *nex_listen_list[] = {
+  &changeConBtn,  // Button added
+  &editTime,
+  NULL
+};
+
+
+void NextionCheckHeatingConfiguration() {
+  // voda - zima, temp
+  uint32_t winterVal; winterBtn.getValue(&winterVal);
+  uint32_t waterTempVal; waterTemp.getValue(&waterTempVal);
+  bool temp1 = water.setUpSendConf(winterVal, waterTempVal);
+
+  uint32_t heatingVal; heatingOnOff.getValue(&heatingVal);
+  uint32_t cycle1Val; cycleOneBtn.getValue(&cycle1Val);
+  uint32_t cycle2Val; cycleTwoBtn.getValue(&cycle2Val);
+  uint32_t cycle3Val; cycleThreeBtn.getValue(&cycle3Val);
+  uint32_t cycle4Val; cycleFourBtn.getValue(&cycle4Val);
+  uint32_t airTempVal; airTemp.getValue(&airTempVal);
+  uint32_t airTempTolVal; airTempTol.getValue(&airTempTolVal);
+  uint32_t floorTempMaxVal;  maxFloorTemp.getValue(&floorTempMaxVal);
+  uint32_t limitFloorTempVal; limitFloorTemp.getValue(&limitFloorTempVal);
+  bool temp2 = powerAndHeating.setUpSendConf(heatingVal, winterVal, cycle1Val, cycle2Val, cycle3Val, cycle4Val, airTempVal, airTempTolVal, floorTempMaxVal, limitFloorTempVal);
+  if (temp2 || temp1) sendConfigurationt();
+}
+
+void sendConfigurationt() {
+  uint8_t data = powerAndHeating.getDataToBeSend();
+  esp_err_t result = esp_now_send(getEspInfoForType(HEATINGANDPOWER).peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
+  delay(50);
+  data = water.getDataToBeSend();
+  result = esp_now_send(getEspInfoForType(WATER).peer_addr, &data, sizeof(data)); // number needs to be same with what slave is expecting
+}
+
 void changeConBtnPopCallback(void *ptr) {
   Serial.println("CU | changeConBtnPopCallback");
   connection.changeConnection();
@@ -135,7 +167,7 @@ void timeManualCallback(void *ptr) {
     uint32_t dayN; numDay.getValue(&dayN);
     uint32_t monthN; numMonth.getValue(&monthN);
     uint32_t yearN; numYear.getValue(&yearN);
-    setTime(hourN,minN,0,dayN,monthN,yearN);
+    setTime(hourN, minN, 0, dayN, monthN, yearN);
   }
 }
 
@@ -190,7 +222,7 @@ SlaveTypes getSlaveTypeForMAC(const uint8_t *mac_addr) { //// propably does not 
 // calls all updateDataOnNexion function
 void refreshScreen() {
   displayTime();
-  weather.updateDataOnNextion(hour());
+  weather.updateDataOnNextion();
   connection.updateDataOnNextion();
   water.updateDataOnNextion();
   security.updateDataOnNextion();
@@ -455,8 +487,9 @@ void sendConformationToUnit(byte indexInEspInfo) {
   } else {
     Serial.println("Not sure what happened");
   }
-
 }
+
+
 // prints whole EEPROM
 void pritnEEPROM() {
   for (int i = 0; i < EEPROM_SIZE; i++) {
@@ -531,7 +564,7 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
   if ( temp > 0 && temp <= slaveTypesNumber) {
     if (getSlaveTypeForMAC(mac_addr) == EMPTY) {
       Serial.print("CU | onDataRecv | Got new unit ist mac is: "); printAddress(mac_addr); Serial.println("");
-      
+
       toAdd.channel = 1;
       toAdd.encrypt = 0;
       memcpy(toAdd.peer_addr, mac_addr, sizeof(toAdd.peer_addr));
@@ -776,13 +809,13 @@ void setup() {
   }
   nexInit();
   changeConBtn.attachPop(changeConBtnPopCallback, &changeConBtn);
-  editTime.attachPop(timeManualCallback,&editTime);
-  
+  editTime.attachPop(timeManualCallback, &editTime);
+
   connection.displayUnknownState();
-  startEndNextionCommand(); 
+  startEndNextionCommand();
   Serial2.print("maxTemp.val=30");
-  startEndNextionCommand(); 
-  
+  startEndNextionCommand();
+
 
   timeClient.begin();
   updateTime();
@@ -810,9 +843,9 @@ void loop() {
   if (interationCounter == 0) {
     updateTime();
     if (security.getIsPositionKnown()) weather.setNewPosition(security.getLatitude(), security.getLongitude());
+    NextionCheckHeatingConfiguration();
     weather.update();
     refreshScreen();
-    //weather.updateDataOnNextion(hour());
     interationCounter = 10;
     pingEachSesnorUnit();
   }
@@ -821,7 +854,7 @@ void loop() {
 
   //connection.getStateOfConnection();
   //sendData(WATER);
-  //removeUnactiveUnits();
+  removeUnactiveUnits();
   interationCounter--;
   delay(500);
 }

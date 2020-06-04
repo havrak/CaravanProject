@@ -24,10 +24,10 @@ class Weather {
 
     }
 
-    void updateDataOnNextion(int hours) {
+    void updateDataOnNextion() {
       String command;
       startEndNextionCommand();
-      hours = hour();
+      int hours = hour();
       command = "textWTemp.txt=\"" + temperature + "°C\"";
       Serial2.print(command);
       startEndNextionCommand();
