@@ -32,6 +32,9 @@ int counter = 0;
 byte noOfAttempts = 0;
 long startTime = -1; // we give 10 seconds to central to respod, then we will try diffrent cenral with same name, values wont be so big that we would have to worry about unsigned long max size is bigger
 
+
+
+
 int lastTimeDataRecived = 0;
 
 const int pinTemp_BUS1 = 13;
@@ -124,6 +127,7 @@ float MaxSupportTemperatureInside [3] = {
   23
 };
 
+
 double dConsumption;
 float CurrentTempBUS2[3];
 int iRefreshRate = 30000;
@@ -153,29 +157,37 @@ float TemperatureFloor;
 char cName;
 
 struct StructConf {
-  bool heating;
-  bool winter;
-  bool cycle1;
-  bool cycle2;
-  bool cycle3;
-  bool cycle4;
-  int airTemp;
-  int airTempTol;
-  int floorTempMax;
-  int limitFloorTemp;
-  float outerTemp;
+  bool heating; // turn on / off heating
+  bool winter; // winter
+  bool cycle1; // user desires cycle 1 to be turned on / off
+  bool cycle2; // user desires cycle 2 to be turned on / off
+  bool cycle3; // user desires cycle 3 to be turned on / off
+  bool cycle4; // user desires cycle 4 to be turned on / off
+  int airTemp; //  MaxTemperatureInside
+  int airTempTol; // tolerance při udržování teploty
+  int floorTempMax; // MaxSupportTemperatureInside
+  int limitFloorTemp; // MaxTemperature
 };
+StructConf conf;
 
 struct SendDataStruct {
-  bool connectionToPowerOutlet;
   double batteryState;
-  double currentDrawn;
+  double currentDraw;
   bool charging;
-  float temperaturesFloor[3];
-  float temperaturesAir[3];
-  bool isHeatingOn;
-  float amperesMax;
+  
+  int iHeatingCircuits;
+  float CurrentTempBUS1[4];
+  int CurrentStatusBUS1[4];
+  int iExternSensors = 3;
+  float CurrentTempBUS2[3];
+  boolean bLowTemperature;
+  boolean bCircuitLowTemperature[3];
+  boolean bCircuitLowSupportTemperature[3];
+  double dConsumption;
+  bool bMasterRelayOn;
 };
+
+
 
 boolean checkIfTwoAddressesAreSame(const uint8_t *addr1, const uint8_t *addr2) {
   if (sizeof(addr1) != sizeof(addr2)) {
@@ -335,10 +347,13 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     Serial.println("HU | onDataRecv | got some data");
     lastTimeDataRecived = millis();
     if (*data != (uint8_t) 88) { // check if message is not just a ping
-      // NEW CONFIGURATION IS PROCESSED HERE
-      StructConf temp;
       if (sizeof(data) != sizeof(temp)) {
         memcpy(&temp, data, sizeof(data));
+        MaxTemperature = conf.limitFloorTemp;
+        MaxTemperatureInside[1] = conf.airTemp;
+        MaxTemperatureInside[2] = conf.airTemp;
+        MaxSupportTemperatureInside[1] = conf.floorTempMax;
+        MaxSupportTemperatureInside[2] = conf.floorTempMax;
         Serial.println("HU | onDataRecv | updated configuration");
       }
     }
@@ -476,18 +491,18 @@ void HeatingMain(void * pvParameters) {
       M5.Lcd.print(WiFi.localIP());
       iLcdRow = iLcdRow + 1;
       M5.Lcd.setCursor(0, iLcdRow * 24);
-      if (digitalRead(iConnected230VPin) == 1) {
+      if (digitalRead(iConnected230VPin) == 1) { // neni přípojka do sítě
         M5.Lcd.setTextColor(TFT_RED);
         M5.Lcd.println("230V disconnected");
         M5.Lcd.println("Master Relay Off");
-        bMasterRelayOn = false;
-        digitalWrite(iMasterRelayPin, HIGH);
+        bMasterRelayOn = false; // masterRelayOn na false
+        digitalWrite(iMasterRelayPin, HIGH); // vypnot masterRaley
 
-        for (byte i = 0; i < iCircuitRelaysMax; i++)
-        {
+        for (byte i = 0; i < iCircuitRelaysMax; i++) // projít všechny topné okruhy a vypnout je
+        { 
           pinMode(tempSensorsBUS1_PIN[i], OUTPUT);
           digitalWrite(tempSensorsBUS1_PIN[i], LOW);  //OFF
-          CurrentStatusBUS1[i] = 0;
+          CurrentStatusBUS1[i] = 0; // okruh je vypnutý
         }
 
       } else {
@@ -495,20 +510,18 @@ void HeatingMain(void * pvParameters) {
         M5.Lcd.println("230V connected");
         M5.Lcd.println("Master Relay On");
         bMasterRelayOn = true;
-        digitalWrite(iMasterRelayPin, LOW);
+        digitalWrite(iMasterRelayPin, LOW);// zapteme rele, okruhy na okruzís se nic nemění
       }
       iLcdRow = iLcdRow + 2;
 
       //delay (1000);
-
-
-      for (byte i = 0; i < iHeatingCircuits; i++)
+      for (byte i = 0; i < iHeatingCircuits; i++) // procházíme všechny 4 okruhy
       {
 
-        TempSensors_BUS1.requestTemperaturesByAddress(tempSensorsBUS1_Address[i]);
-        CurrentTempBUS1[i] = TempSensors_BUS1.getTempC(tempSensorsBUS1_Address[i]);
+        TempSensors_BUS1.requestTemperaturesByAddress(tempSensorsBUS1_Address[i]); // zbytečný řádek??????
+        CurrentTempBUS1[i] = TempSensors_BUS1.getTempC(tempSensorsBUS1_Address[i]); // aktualizujeme teplotu v daném okruhu
 
-        if ((bMasterRelayOn && bCircuitLowTemperature[i]) || (bMasterRelayOn && bCircuitLowSupportTemperature[i])) {
+        if ((bMasterRelayOn && bCircuitLowTemperature[i]) || (bMasterRelayOn && bCircuitLowSupportTemperature[i])) { // je zapnuté masterRele a je zaplý okruh || je zaptnuté masterRele a okruh topí na podporu?????
           if ( (bCircuitLowTemperature[i] && CurrentTempBUS1[i]  < MaxTemperature) || (bCircuitLowSupportTemperature[i] && CurrentTempBUS1[i]  < MaxSupportTemperature)) {
             digitalWrite(tempSensorsBUS1_PIN[i], HIGH);
             if (CurrentStatusBUS1[i] == 0) {

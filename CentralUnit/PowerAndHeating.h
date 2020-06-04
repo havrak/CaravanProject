@@ -15,7 +15,7 @@ class PowerAndHeating : public UnitAbstract {
     void updateDataOnNextion() {
       String command;
       // green plug, charging battery icon (even when charged)
-      if (data.connectionToPowerOutlet) {
+      if (data.bMasterRelayOn) {
         startEndNextionCommand();
         command = "textPower.txt=\"Connected\"";
         Serial2.print(command);
@@ -38,7 +38,7 @@ class PowerAndHeating : public UnitAbstract {
         Serial2.print(command);
         startEndNextionCommand();
       }
-      if (data.isHeatingOn) {
+      if (data.bLowTemperature) {
         startEndNextionCommand();
         command = "textHeating.txt=\"ON\"";
         Serial2.print(command);
@@ -46,7 +46,7 @@ class PowerAndHeating : public UnitAbstract {
         command = "imgHeating.pic=4";
         Serial2.print(command);
         startEndNextionCommand();
-        command = "textAmperes.txt=\"" + String(data.amperesMax) + "A\"";
+        command = "textAmperes.txt=\"" + String(data.dConsumption) + "A\"";
         Serial2.print(command);
         startEndNextionCommand();
       } else {
@@ -64,7 +64,20 @@ class PowerAndHeating : public UnitAbstract {
       command = "textBattery.txt=\"" + String(data.batteryState) + "%\"";
       Serial2.print(command);
       startEndNextionCommand();
-      command = "textDrawn.txt=\"" + String(data.currentDrawn) + "A\"";
+      command = "textDrawn.txt=\"" + String(data.currentDraw) + "A\"";
+      Serial2.print(command);
+      startEndNextionCommand();
+      command = "floorTempInfo.txt=\"number of heating cycles: " + String(data.iHeatingCircuits) + "\r"
+      + "name bus 1" + String(tempSensorsBUS1_Name[0]) +" " + String(tempSensorsBUS1_Name[1]) + " " + String(tempSensorsBUS1_Name[2]) + " " + String(tempSensorsBUS1_Name[3]) + "\r"
+      + "temp bus 1" + String(data.CurrentTempBUS1[0]) +" " + String(data.CurrentTempBUS1[1]) + " " + String(data.CurrentTempBUS1[2]) + " " + String(data.CurrentTempBUS1[3]) + "\r"
+      + "name bus 1" + String(tempSensorsBUS2_Name[0]) +" " + String(tempSensorsBUS2_Name[1]) + " " + String(tempSensorsBUS2_Name[2]) + "\r"
+      + "temp bus 1" + String(data.CurrentTempBUS2[0]) +" " + String(data.CurrentTempBUS2[1]) + " " + String(data.CurrentTempBUS2[2]) + "\r"
+      + "heating: " + String(data.bLowTemperature) + "\r"
+      + "cycle state heating: "  + String(data.bCircuitLowTemperature[0]) +" " + String(data.bCircuitLowTemperature[1]) + " " + String(data.bCircuitLowTemperature[2]) + "\r"
+      + "cycle state support: "  + String(data.bCircuitLowSupportTemperature[0]) +" " + String(data.bCircuitLowSupportTemperature[1]) + " " + String(data.bCircuitLowSupportTemperature[2]) + "\r"
+      + "consumption: " + String(data.dConsumption) + "\r"
+      + "masterRealy: " + String(data.bMasterRelayOn) + "\r"
+      + "\"";
       Serial2.print(command);
       startEndNextionCommand();
     }
@@ -87,18 +100,15 @@ class PowerAndHeating : public UnitAbstract {
 
     // geters for variables in scructure for testing purpouse
     bool getConnectionToPowerOutlet() {
-      return data.connectionToPowerOutlet;
+      return data.bMasterRelayOn;
     }
     double getBatteryState() {
       return data.batteryState;
     }
-    double getCurrentDrawn() {
-      return data.currentDrawn;
+    double getCurrentDraw() {
+      return data.currentDraw;
     }
-    void setUpOuterTemp(float temp){
-      sendConf.outerTemp = temp;
-   }
-    
+
     bool setUpSendConf(bool heating, bool winter, bool cycle1, bool cycle2, bool cycle3, bool cycle4, int airTemp, int airTempTol, int floorTempMax, int limitFloorTemp) {
       if (sendConf.heating == heating &&
           sendConf.winter == winter &&
@@ -126,7 +136,7 @@ class PowerAndHeating : public UnitAbstract {
     }
 
   private:
-  
+
     struct SendConf {
       bool heating;
       bool winter;
@@ -138,24 +148,42 @@ class PowerAndHeating : public UnitAbstract {
       int airTempTol;
       int floorTempMax;
       int limitFloorTemp;
-      float outerTemp;
     };
-    
+
     SendConf sendConf;
 
     struct Data {
-      bool connectionToPowerOutlet;
       double batteryState;
-      double currentDrawn;
+      double currentDraw;
       bool charging;
-      float temperaturesFloor[3];
-      float temperaturesAir[3];
-      bool isHeatingOn;
-      float amperesMax;
+
+      int iHeatingCircuits;
+      float CurrentTempBUS1[4];
+      int CurrentStatusBUS1[4];
+      int iExternSensors = 3;
+      float CurrentTempBUS2[3];
+      boolean bLowTemperature;
+      boolean bCircuitLowTemperature[3];
+      boolean bCircuitLowSupportTemperature[3];
+      double dConsumption;
+      bool bMasterRelayOn;
     };
 
     double floorTempAverage = 0;
     double airTempAverage = 0;
     Data data;
+
+    String tempSensorsBUS1_Name[4] = {
+      "Back_290W",
+      "Middle_400W",
+      "Front_350W",
+      "Reserve    "
+    };
+
+    String tempSensorsBUS2_Name[3] = {
+      "OutSide",
+      "Top Back",
+      "Middle"
+    };
 };
 #endif
