@@ -25,6 +25,7 @@
 
 OneWire oneWireDS(DSPINTEMP);
 DallasTemperature tempSensor(&oneWireDS);
+int indexSensor(); // index in tempSensors gives here heating cylce it corresponds to.
 
 ClosedCube::Wired::TCA9548A tca9548a;
 PCA9554 ioCon1(0x20);  // Create an object at this address
@@ -101,7 +102,7 @@ void initESPNow() {
   }
 }
 
-// first byte in/off EEPROM, 1 - 6 is masters mac
+// first byte in/off EEPROM, 1 - 6 is masters mac // 
 void storeDataInEEPROM(){
   if(EEPROM.read(0) == 0){ // limited number of writes
       EEPROM.write(0,1);
@@ -118,6 +119,16 @@ void storeDataInEEPROM(){
   }
   // check if data is same
   EEPROM.commit();
+}
+
+void storeAddressesInEEPROM(DeviceAddress inner, DeviceAddress outer) {
+  EEPROM.write(18, 1);
+  for (int i = 19; i < 27; i++) { // address for inner sensor
+     EEPROM.write(i,tempDeviceAddressA[i - 19]);
+  }
+  for (int i = 27; i < 35; i++) { // address for outer sensor
+     EEPROM.write(i,tempDeviceAddressA[i - 27]);
+  }
 }
 
 // 
