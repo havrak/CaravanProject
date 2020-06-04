@@ -55,7 +55,6 @@ int pulseCounter;
 byte validityOfData;
 
 bool winter;
-int minWaterTemp = 2;
 
 int indexOfOuterTemp;
 int indexOfInnerTemp;
@@ -106,6 +105,10 @@ struct StructConf {
   bool winter;
   int minTemp;
 };
+
+StructConf conf;
+
+
 
 // Init ESP Now with fallback
 void initESPNow() {
@@ -437,9 +440,10 @@ void onDataRecv(const uint8_t *mac_addr, const uint8_t *data, int data_len) {
     lastTimeDataRecived = millis();
     if (*data != (uint8_t) 88) { // check if message is not just a ping
       // NEW CONFIGURATION IS PROCESSED HERE
-      StructConf temp;
-      if (sizeof(data) != sizeof(temp)) {
-        memcpy(&temp, data, sizeof(data));
+      
+      if (sizeof(data) != sizeof(conf)) {
+        memcpy(&conf, data, sizeof(data));
+        
         Serial.println("WU | onDataRecv | updated configuration");
       }
     }
@@ -551,6 +555,8 @@ void setup() {
   //pinMode(34, INPUT);             // snímač hladiny spodní, LOW sepnuto
   //pinMode(5, INPUT);              // Prutokomer impulsy
 
+  conf.minTemp = 2;
+  
   if (!EEPROM.begin(EEPROM_SIZE)) {
     validityOfData = 2; // we can't read from EEPROM
     Serial.println("failed to initialize EEPROM");
@@ -681,10 +687,10 @@ void loop() {
     litersRemaining = remainderWhenLowSensorHitted;
     validityOfData = 0;
   }
-  if (waterTemperature <= minWaterTemp) {
+  if (waterTemperature <= conf.minTemp) {
     heatingOn = true;
     digitalWrite(RELEHEAT, HIGH);
-  } else if (heatingOn && waterTemperature >= minWaterTemp + 1) {
+  } else if (heatingOn && waterTemperature >= conf.minTemp + 1) {
     heatingOn = true;
     digitalWrite(RELEHEAT, LOW);
   }
