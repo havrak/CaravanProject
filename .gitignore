@@ -4,3 +4,4 @@ libraries
 [^\.]*.elf
 .other
 .MOV Backup
+ProjectFiles/notes.md

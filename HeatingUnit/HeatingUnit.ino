@@ -32,9 +32,6 @@ int counter = 0;
 byte noOfAttempts = 0;
 long startTime = -1; // we give 10 seconds to central to respod, then we will try diffrent cenral with same name, values wont be so big that we would have to worry about unsigned long max size is bigger
 
-
-
-
 int lastTimeDataRecived = 0;
 
 const int pinTemp_BUS1 = 13;

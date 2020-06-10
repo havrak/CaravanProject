@@ -18,7 +18,8 @@ class Connection {
     String sbuffer;
     String MikroTikPrompt = "[admin@MikroTik] > ";
     int  loggedIn = 0;
-
+    String password = "";
+    
     bool isTelnetConnectionRunning = false;
     bool didIAuthorized = false;
 
@@ -51,12 +52,11 @@ class Connection {
         {
           prompt += c;
           if (loggedIn == 1) sbuffer += c;
-          //Serial.print(prompt);
         }
         commands += "0x" + String(c, HEX) + " ";
-        //Serial.println(commands);
-        //Serial.println(prompt);
-        //Serial.println(loggedIn);
+        Serial.println(commands);
+        Serial.println(prompt);
+        Serial.println(loggedIn);
       }
     }
 
@@ -72,9 +72,9 @@ class Connection {
       }
       timeout = millis();
       while (getTimeDiffrence(timeout) < 5000) {
-
         setUpVariables();
         //Serial.println(commands);
+        //commands == "0xff 0xfd 0x18 0xff 0xfd 0x20 0xff 0xfd 0x23 0xff 0xfd 0x27 "
         if (commands == "0xff 0xfd 0x18 0xff 0xfd 0x20 0xff 0xfd 0x23 0xff 0xfd 0x27 ") {
           Serial.println();
           Serial.println("CO | authorize | Received Phrase 1");
@@ -117,7 +117,7 @@ class Connection {
         if (prompt == "Password:") {
           Serial.println();
           Serial.println("CO | authorize | Password!!!");
-          client.println("Sboj3169a");
+          client.println(password);
           loggedIn = 1;
           commands = "";
           prompt = "";
@@ -154,7 +154,8 @@ class Connection {
     double SignalStrenght;
 
     Connection() {
-      mikrotikIP = IPAddress(10, 18, 11, 240);
+      //mikrotikIP = IPAddress(10, 18, 11, 240);
+      mikrotikIP = IPAddress(192, 168, 88, 1);
     }
 
     // sets color of "Pripojeni" to yellow
@@ -190,11 +191,11 @@ class Connection {
           if (sendCommand) {
             sbuffer.trim();
             if (sbuffer.indexOf("poe-out:forced-on") == 0) {
-              bool isConnectionLTE = true;
+              isConnectionLTE = true;
               Serial.println("CU | getStateOfConnection | Forced On");
               return 1;
             } else if (sbuffer.indexOf("poe-out:forced-off") == 0) {
-              bool isConnectionLTE = true;
+              isConnectionLTE = false;
               Serial.println("CU | getStateOfConnection | Forced Off");
               return 0;
             }
@@ -224,6 +225,7 @@ class Connection {
             if (isConnectionLTE = !isConnectionLTE) {
               Serial.println("CO | changeConnection | Connection is LTE");
               client.println("/interface ethernet poe set ether2 poe-out=off");
+              delay(100);
               client.println("/interface ethernet poe set ether3 poe-out=force");
               command = "textConnection.txt=\"LTE\"";
             }
@@ -231,8 +233,8 @@ class Connection {
               Serial.println("CO | changeConnection | Connection is AP");
               command = "textConnection.txt=\"AP\"";
               //client.println("/interface ethernet poe set ether4 poe-out=force");
-
               client.println("/interface ethernet poe set ether3 poe-out=off");
+              delay(100);
               client.println("/interface ethernet poe set ether2 poe-out=force");
             }
             inConnectionKnown = true;

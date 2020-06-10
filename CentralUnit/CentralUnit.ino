@@ -4,7 +4,6 @@
 #include <WebServer.h>      // for running webserver on Nextion
 #include <EEPROM.h>         // for writing data into EEPROM (probably wont be used here)
 #include <Time.h>           // for timekeeping
-//#include <WiFiUdp.h>        // for WifiUdp
 #include <NTPClient.h>      // for syncing time via NTP
 #include <Nextion.h>        // for getting data from nextion display
 #include <Timezone.h>       // for keeping track of timezones and summer time
@@ -54,11 +53,17 @@ byte mac[] = {0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED};
 //IPAddress dnsss( 8, 8, 8, 8);
 //IPAddress ip(10, 18, 11, 197);
 
-// Home network
+// VPN network
 IPAddress nm(255, 255, 255, 0);
-IPAddress gw(192, 168, 1, 1);
+IPAddress gw(192, 168, 88, 1);
 IPAddress dnsss(8, 8, 8, 8);
-IPAddress ip(192, 168, 1, 198);
+IPAddress ip(192, 168, 88, 198);
+
+// Home network
+//IPAddress nm(255, 255, 255, 0);
+//IPAddress gw(192, 168, 1, 1);
+//IPAddress dnsss(8, 8, 8, 8);
+//IPAddress ip(192, 168, 1, 198);
 // need last one whole array will be inicialized with emtpy sicne you cant go back to default value of enum
 enum SlaveTypes {
   SECURITY, WATER, WHEELS, HEATINGANDPOWER, EMPTY
@@ -66,19 +71,24 @@ enum SlaveTypes {
 
 //Nextion on screen interactive items
 // connection
-NexButton changeConBtn = NexButton(0, 57, "changeConBtn");  // Button added
+NexButton changeConBtn1 = NexButton(0, 53, "changeConBtn");  // Button added
+NexButton changeConBtn2 = NexButton(1, 35, "changeConBtn");  // Button added
+NexButton changeConBtn3 = NexButton(2, 35, "changeConBtn");  // Button added
+NexButton changeConBtn4 = NexButton(3, 35, "changeConBtn");  // Button added
 
 // time
-NexDSButton btnTimeOffset = NexDSButton(2, 39, "btnTimeOffset");
-NexDSButton btnNTP = NexDSButton(2, 65, "btnNTPTime");
-NexDSButton btnGPS = NexDSButton(2, 64, "btnGPSTime");
-NexNumber numOffset = NexNumber(2, 40, "numOffset");
-NexNumber editTime = NexNumber(2, 43, "editTime");
-NexNumber numHour = NexNumber(2, 45, "numHour");
-NexNumber numMin = NexNumber(2, 44, "numMin");
-NexNumber numMonth = NexNumber(2, 47, "numMonth");
-NexNumber numDay = NexNumber(2, 46, "numDay");
-NexNumber numYear = NexNumber(2, 48, "numYear");
+NexDSButton btnTimeOffset = NexDSButton(2, 37, "btnTimeOffset");
+NexDSButton btnNTP = NexDSButton(2, 63, "btnNTPTime");
+NexDSButton btnGPS = NexDSButton(2, 62, "btnGPSTime");
+NexNumber numOffset = NexNumber(2, 38, "numOffset");
+NexNumber editTime = NexNumber(2, 41, "editTime");
+
+NexNumber numHour = NexNumber(2, 43, "numHour");
+NexNumber numMin = NexNumber(2, 42, "numMin");
+NexNumber numMonth = NexNumber(2, 45, "numMonth");
+NexNumber numDay = NexNumber(2, 44, "numDay");
+NexNumber numYear = NexNumber(2, 46, "numYear");
+
 // heating
 NexDSButton cycleOneBtn = NexDSButton(1, 49, "cycle1");
 NexDSButton cycleTwoBtn = NexDSButton(1, 53, "cycle2");
@@ -115,7 +125,10 @@ Connection connection;     // unsafe, crashes whole unit
 Weather weather(49.233056, 17.666944); // lat and lon of Zlin
 
 NexTouch *nex_listen_list[] = {
-  &changeConBtn,  // Button added
+  &changeConBtn1,
+  &changeConBtn2,
+  &changeConBtn3,
+  &changeConBtn4,
   &editTime,
   NULL
 };
@@ -161,12 +174,13 @@ void timeManualCallback(void *ptr) {
   btnNTP.getValue(&stateNTP);
   uint32_t stateGPS;
   btnGPS.getValue(&stateGPS);
+
   if (!stateEditTime && !stateNTP) { // dispaly time on manual setup, if editing is off
-    uint32_t minN; numMin.getValue(&minN);
-    uint32_t hourN; numHour.getValue(&hourN);
-    uint32_t dayN; numDay.getValue(&dayN);
-    uint32_t monthN; numMonth.getValue(&monthN);
-    uint32_t yearN; numYear.getValue(&yearN);
+    uint32_t minN = minute(); numMin.getValue(&minN);
+    uint32_t hourN = hour(); numHour.getValue(&hourN);
+    uint32_t dayN = day(); numDay.getValue(&dayN);
+    uint32_t monthN = month(); numMonth.getValue(&monthN);
+    uint32_t yearN = year(); numYear.getValue(&yearN);
     setTime(hourN, minN, 0, dayN, monthN, yearN);
   }
 }
@@ -673,33 +687,37 @@ void pingEachSesnorUnit() {
 // Maybe could be moved to its own class
 // updates time via NTP cilent
 void updateTime() {
-  uint32_t stateNTP;
+  uint32_t stateNTP = 1;
   btnNTP.getValue(&stateNTP);
 
-  uint32_t stateGPS;
+  uint32_t stateGPS = 0;
   btnGPS.getValue(&stateGPS);
 
   if (stateGPS || stateNTP) {
     if (security.getEstablishedConnection() && stateGPS) {
+      Serial.println("CU | updateTime | Time from GPS is used");
       setTime(security.getTime());
     } else { // if security wasn't connected we will use NTP, even in case when GPS is set on
+      Serial.println("CU | updateTime | Time from NTP is used");
       byte  tries = 0; // while with timeClient.update() can result in infinite loop (some internal problem of library), so just kill it after few tries
       int   triesTime = millis();
-      //timeClient.setTimeOffset(setOffSetForSummerTime());
-      while (!timeClient.update() && tries < 5 && getTimeDiffrence(triesTime) < 5000) {
-        timeClient.forceUpdate();
-        Serial.println("CU | updateTime | updated");
+      bool temp = timeClient.forceUpdate();
+      while (!temp && tries < 5 && getTimeDiffrence(triesTime) < 5000) {
+        temp = timeClient.forceUpdate();
         tries++;
       }
-      // get unix time and sets it into Time.h for timekeeping
+      if (temp) Serial.println("CU | updateTime | Time from NTP is used");
       setTime(timeClient.getEpochTime());
+      // get unix time and sets it into Time.h for timekeeping
     }
 
-    uint32_t state;
+    uint32_t state = 1;
     btnTimeOffset.getValue(&state);
     if (state) {
+      Serial.println("CU | updateTime | CET is used");
       setTime(CE.toLocal(now()));
     } else {
+      Serial.println("CU | updateTime | Nextion offset is used");
       uint32_t number;
       numOffset.getValue(&number);
       adjustTime(number * 3600);
@@ -710,7 +728,11 @@ void updateTime() {
   Serial.print(":");
   Serial.print(minute());
   Serial.print(":");
-  Serial.println(second());
+  Serial.print(second());
+  Serial.print("   ");
+  Serial.print(day());
+  Serial.print(":");
+  Serial.println(month());
 }
 
 // displys time on nextion
@@ -735,7 +757,7 @@ void displayTime() {
   command = "textMonth.txt=\"" + String(month()) + "\"";
   Serial2.print(command);
   startEndNextionCommand();
-  uint32_t stateEditTime;
+  uint32_t stateEditTime = 0;
   editTime.getValue(&stateEditTime);
   if (!stateEditTime) { // dispaly time on manual setup, if editing is off
     String command;
@@ -808,7 +830,11 @@ void setup() {
     loadDataFromEEPROM();
   }
   nexInit();
-  changeConBtn.attachPop(changeConBtnPopCallback, &changeConBtn);
+  changeConBtn1.attachPop(changeConBtnPopCallback, &changeConBtn1);
+  changeConBtn2.attachPop(changeConBtnPopCallback, &changeConBtn2);
+  changeConBtn3.attachPop(changeConBtnPopCallback, &changeConBtn3);
+  changeConBtn4.attachPop(changeConBtnPopCallback, &changeConBtn4);
+  
   editTime.attachPop(timeManualCallback, &editTime);
 
   connection.displayUnknownState();
@@ -854,7 +880,7 @@ void loop() {
 
   displayTime();
 
-  //connection.getStateOfConnection();
+  connection.getStateOfConnection();
   //sendData(WATER);
   removeUnactiveUnits();
   interationCounter--;
